@@ -84,13 +84,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
         }
 
         // Check biometric availability
-        let biometricAvailable = false;
-        try {
-          const bio = await invoke<{ available: boolean }>('check_biometric_availability');
-          biometricAvailable = bio.available;
-        } catch {
-          biometricAvailable = false;
-        }
+        const biometricAvailable = await invoke<boolean>('check_biometric_availability').catch(() => false);
 
         if (!hasPass) {
           set({ isFirstLaunch: true, isLocked: false, biometricAvailable });

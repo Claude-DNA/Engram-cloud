@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAuthStore } from '../stores/authStore';
-import { mnemonicToEntropy } from '../lib/recovery';
 
 export default function LockScreen() {
   const [passphrase, setPassphrase] = useState('');
@@ -14,6 +13,7 @@ export default function LockScreen() {
   // Recovery modal state
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryWords, setRecoveryWords] = useState('');
+  const [verifiedWords, setVerifiedWords] = useState<string[]>([]);
   const [recoveryError, setRecoveryError] = useState('');
   const [recoverySuccess, setRecoverySuccess] = useState(false);
   const [newPassphrase, setNewPassphrase] = useState('');
@@ -54,8 +54,8 @@ export default function LockScreen() {
   const handleBiometric = async () => {
     setError('');
     try {
-      const ok = await invoke<boolean>('biometric_authenticate');
-      if (ok) unlock();
+      await invoke('biometric_authenticate');
+      unlock();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Biometric authentication failed');
     }
@@ -110,9 +110,9 @@ export default function LockScreen() {
         return;
       }
 
-      const entropyHex = await mnemonicToEntropy(words);
-      const valid = await invoke<boolean>('recover_with_key', { entropyHex });
+      const valid = await invoke<boolean>('verify_recovery_key', { words });
       if (valid) {
+        setVerifiedWords(words);
         setRecoverySuccess(true);
       } else {
         setRecoveryError('Recovery key does not match. Please check your words.');
@@ -137,11 +137,14 @@ export default function LockScreen() {
     }
     setRecoveryLoading(true);
     try {
-      await invoke('create_passphrase', { passphrase: newPassphrase });
+      await invoke('reset_passphrase_with_recovery', {
+        recoveryWords: verifiedWords,
+        newPassphrase,
+      });
       setShowRecovery(false);
       unlock();
     } catch (err: unknown) {
-      setRecoveryError(err instanceof Error ? err.message : 'Failed to create passphrase');
+      setRecoveryError(err instanceof Error ? err.message : 'Failed to reset passphrase');
     } finally {
       setRecoveryLoading(false);
     }

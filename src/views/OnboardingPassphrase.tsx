@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAuthStore } from '../stores/authStore';
-import { entropyToMnemonic } from '../lib/recovery';
 
 function getStrength(pass: string): { score: number; label: string; color: string } {
   if (pass.length === 0) return { score: 0, label: '', color: '' };
@@ -30,7 +29,6 @@ export default function OnboardingPassphrase() {
 
   // Recovery key state
   const [recoveryWords, setRecoveryWords] = useState<string[]>([]);
-  const [entropyHex, setEntropyHex] = useState('');
   const [savedChecked, setSavedChecked] = useState(false);
 
   const setFirstLaunch = useAuthStore((s) => s.setFirstLaunch);
@@ -55,10 +53,8 @@ export default function OnboardingPassphrase() {
     setLoading(true);
     try {
       await invoke('create_passphrase', { passphrase });
-      // Generate recovery key
-      const hex = await invoke<string>('generate_recovery_key');
-      const words = await entropyToMnemonic(hex);
-      setEntropyHex(hex);
+      // Generate recovery key — Rust hashes and stores it, returns the 24 words
+      const words = await invoke<string[]>('generate_recovery_key');
       setRecoveryWords(words);
       setStep(2);
     } catch (err: unknown) {
@@ -68,17 +64,10 @@ export default function OnboardingPassphrase() {
     }
   };
 
-  const handleContinue = async () => {
-    setLoading(true);
-    try {
-      await invoke('store_recovery_data', { entropyHex, passphraseHash: 'stored' });
-      setFirstLaunch(false);
-      unlock();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
+  const handleContinue = () => {
+    // Recovery key is already hashed and stored by generate_recovery_key
+    setFirstLaunch(false);
+    unlock();
   };
 
   return (
