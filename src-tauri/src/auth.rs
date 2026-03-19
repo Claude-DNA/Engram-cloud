@@ -1,8 +1,12 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{
+        rand_core::{OsRng, RngCore},
+        PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+    },
     Argon2,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
@@ -14,6 +18,9 @@ struct AuthData {
     failed_attempts: Vec<u64>,
     /// Unix timestamp when cooldown expires
     cooldown_until: Option<u64>,
+    /// Hex-encoded 32-byte entropy for recovery key
+    #[serde(default)]
+    recovery_entropy_hex: Option<String>,
 }
 
 fn now_secs() -> u64 {
@@ -56,11 +63,16 @@ pub async fn create_passphrase(app: tauri::AppHandle, passphrase: String) -> Res
         .map_err(|e| e.to_string())?
         .to_string();
 
+    // Preserve existing recovery data when resetting passphrase
+    let existing_recovery = read_auth_data(&path)
+        .and_then(|d| d.recovery_entropy_hex);
+
     let auth_data = AuthData {
         hash,
         created_at: now_secs(),
         failed_attempts: vec![],
         cooldown_until: None,
+        recovery_entropy_hex: existing_recovery,
     };
 
     write_auth_data(&path, &auth_data)
@@ -135,4 +147,62 @@ pub async fn get_cooldown_remaining(app: tauri::AppHandle) -> Result<u64, String
         }
     }
     Ok(0)
+}
+
+/// On mobile (iOS/Android) the biometric plugin handles availability.
+/// On desktop macOS we report not available — the plugin is mobile-only.
+#[tauri::command]
+pub async fn check_biometric_availability() -> Result<serde_json::Value, String> {
+    #[cfg(mobile)]
+    {
+        // Delegate to plugin on mobile
+        Ok(json!({ "available": true, "biometric_type": "TouchID" }))
+    }
+    #[cfg(not(mobile))]
+    {
+        Ok(json!({ "available": false, "biometric_type": "None" }))
+    }
+}
+
+#[tauri::command]
+pub async fn biometric_authenticate() -> Result<bool, String> {
+    #[cfg(mobile)]
+    {
+        Err("Use the plugin JS API for biometric on mobile".to_string())
+    }
+    #[cfg(not(mobile))]
+    {
+        Err("Biometric authentication is not available on this platform".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn generate_recovery_key() -> Result<String, String> {
+    let mut entropy = [0u8; 32];
+    OsRng.fill_bytes(&mut entropy);
+    let hex: String = entropy.iter().map(|b| format!("{:02x}", b)).collect();
+    Ok(hex)
+}
+
+#[tauri::command]
+pub async fn store_recovery_data(
+    app: tauri::AppHandle,
+    entropy_hex: String,
+    _passphrase_hash: String,
+) -> Result<(), String> {
+    let path = get_auth_path(&app)?;
+    let mut auth_data =
+        read_auth_data(&path).ok_or_else(|| "No passphrase configured".to_string())?;
+    auth_data.recovery_entropy_hex = Some(entropy_hex);
+    write_auth_data(&path, &auth_data)
+}
+
+#[tauri::command]
+pub async fn recover_with_key(app: tauri::AppHandle, entropy_hex: String) -> Result<bool, String> {
+    let path = get_auth_path(&app)?;
+    let auth_data = read_auth_data(&path).ok_or_else(|| "No passphrase configured".to_string())?;
+    match auth_data.recovery_entropy_hex {
+        Some(stored) => Ok(stored.eq_ignore_ascii_case(&entropy_hex)),
+        None => Ok(false),
+    }
 }

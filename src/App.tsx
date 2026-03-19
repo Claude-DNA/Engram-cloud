@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { listen } from '@tauri-apps/api/event';
 import Layout from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Home from './pages/Home';
@@ -17,6 +18,9 @@ export default function App() {
   const isFirstLaunch = useAuthStore((s) => s.isFirstLaunch);
   const initialize = useAuthStore((s) => s.initialize);
   const resetActivity = useAuthStore((s) => s.resetActivity);
+  const lock = useAuthStore((s) => s.lock);
+
+  const blurTimeRef = useRef(0);
 
   // Initialise auth state once on mount
   useEffect(() => {
@@ -30,6 +34,29 @@ export default function App() {
     events.forEach((e) => window.addEventListener(e, handler, { passive: true }));
     return () => events.forEach((e) => window.removeEventListener(e, handler));
   }, [resetActivity]);
+
+  // Auto-lock on window blur >60 seconds
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
+    const setup = async () => {
+      const unBlur = await listen('tauri://blur', () => {
+        blurTimeRef.current = Date.now();
+      });
+      const unFocus = await listen('tauri://focus', () => {
+        if (blurTimeRef.current > 0 && Date.now() - blurTimeRef.current > 60_000) {
+          lock();
+        }
+      });
+      cleanup = () => {
+        unBlur();
+        unFocus();
+      };
+    };
+
+    setup();
+    return () => cleanup?.();
+  }, [lock]);
 
   if (isFirstLaunch) {
     return <OnboardingPassphrase />;

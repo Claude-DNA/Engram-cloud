@@ -169,7 +169,12 @@ pub fn run() {
             auth::create_passphrase,
             auth::verify_passphrase,
             auth::has_passphrase,
-            auth::get_cooldown_remaining
+            auth::get_cooldown_remaining,
+            auth::check_biometric_availability,
+            auth::biometric_authenticate,
+            auth::generate_recovery_key,
+            auth::store_recovery_data,
+            auth::recover_with_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

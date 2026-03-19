@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import { settingsRepository } from '../repositories';
 
 interface AuthState {
   isLocked: boolean;
@@ -8,6 +9,7 @@ interface AuthState {
   failedAttempts: number;
   cooldownUntil: number | null;
   isFirstLaunch: boolean;
+  biometricAvailable: boolean;
 }
 
 interface AuthActions {
@@ -35,6 +37,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
     failedAttempts: 0,
     cooldownUntil: null,
     isFirstLaunch: false,
+    biometricAvailable: false,
 
     unlock: () =>
       set({
@@ -70,10 +73,31 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
     initialize: async () => {
       try {
         const hasPass = await invoke<boolean>('has_passphrase');
+
+        // Check auth_required setting (default: true)
+        let authRequired = true;
+        try {
+          const setting = await settingsRepository.get('auth_required');
+          if (setting === 'false') authRequired = false;
+        } catch {
+          // DB not ready yet — default to requiring auth
+        }
+
+        // Check biometric availability
+        let biometricAvailable = false;
+        try {
+          const bio = await invoke<{ available: boolean }>('check_biometric_availability');
+          biometricAvailable = bio.available;
+        } catch {
+          biometricAvailable = false;
+        }
+
         if (!hasPass) {
-          set({ isFirstLaunch: true, isLocked: false });
+          set({ isFirstLaunch: true, isLocked: false, biometricAvailable });
+        } else if (!authRequired) {
+          set({ isFirstLaunch: false, isLocked: false, biometricAvailable });
         } else {
-          set({ isFirstLaunch: false, isLocked: true });
+          set({ isFirstLaunch: false, isLocked: true, biometricAvailable });
         }
       } catch (err) {
         console.error('Auth init error:', err);
