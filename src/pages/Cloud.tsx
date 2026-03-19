@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useEngramStore } from '../stores/engramStore';
 import SearchBar from '../components/SearchBar';
 import EngramCard from '../components/EngramCard';
 import EmptyState from '../components/EmptyState';
+import EngramModal from '../components/EngramModal';
 import type { CloudType, EngramItem } from '../types/engram';
 import { VALID_CLOUD_TYPES } from '../types/engram';
 
@@ -15,6 +16,10 @@ export default function Cloud() {
   const searchQuery = useEngramStore((s) => s.searchQuery);
   const isLoading = useEngramStore((s) => s.isLoading);
   const hasMore = useEngramStore((s) => s.hasMore);
+  const activePersonId = useEngramStore((s) => s.activePersonId);
+  const itemCreated = useEngramStore((s) => s.itemCreated);
+
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Sync URL param → store
   useEffect(() => {
@@ -35,12 +40,39 @@ export default function Cloud() {
     [navigate],
   );
 
+  const handleCreate = (data: {
+    cloud_type: CloudType;
+    title: string;
+    content: string;
+    date: string | null;
+    life_phase_id: number | null;
+  }) => {
+    if (!activePersonId) return;
+
+    // In full wiring: repo.create() first, then surgical update
+    const newItem: EngramItem = {
+      id: Date.now(), // temp ID — replaced by DB in real flow
+      uuid: '',
+      person_id: activePersonId,
+      cloud_type: data.cloud_type,
+      title: data.title,
+      content: data.content,
+      date: data.date,
+      life_phase_id: data.life_phase_id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      deleted_at: null,
+    } as EngramItem;
+    itemCreated(newItem);
+    setCreateModalOpen(false);
+  };
+
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       if (!hasMore || isLoading) return;
       const el = e.currentTarget;
       if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
-        // loadMore will be wired in Phase 2.3 when we connect to real DB
+        // loadMore wired when connected to real DB
       }
     },
     [hasMore, isLoading],
@@ -55,9 +87,17 @@ export default function Cloud() {
             ? validCloudType.charAt(0).toUpperCase() + validCloudType.slice(1) + ' Cloud'
             : 'All Clouds'}
         </h2>
-        <span className="text-text-secondary text-xs">
-          {items.length} engram{items.length !== 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-text-secondary text-xs">
+            {items.length} engram{items.length !== 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={() => setCreateModalOpen(true)}
+            className="px-3 py-1.5 bg-accent-gold text-background rounded-lg text-sm font-medium hover:bg-accent-gold/90 transition-colors"
+          >
+            + New
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -70,6 +110,7 @@ export default function Cloud() {
         <EmptyState
           cloudType={validCloudType}
           isSearch={searchQuery.length > 0}
+          onCreateClick={() => setCreateModalOpen(true)}
         />
       ) : (
         <div className="flex-1 overflow-auto px-4 pb-4">
@@ -85,6 +126,13 @@ export default function Cloud() {
           )}
         </div>
       )}
+
+      {/* Create modal */}
+      <EngramModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onSave={handleCreate}
+      />
     </div>
   );
 }
