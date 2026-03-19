@@ -81,16 +81,39 @@ impl EncryptedDb {
     // ── Salt / key derivation ─────────────────────────────────────────────────
 
     fn get_or_create_salt() -> Result<Vec<u8>, String> {
+        // Try keychain first, fall back to file-based salt (dev builds may lack entitlements)
         match get_generic_password("engram-cloud", "db-encryption-salt") {
-            Ok(salt) => Ok(salt),
+            Ok(salt) => return Ok(salt),
+            Err(_) => {}
+        }
+
+        // Check file-based fallback
+        let salt_dir = dirs::data_dir()
+            .ok_or("No data directory")?
+            .join("cloud.engram.app");
+        let salt_path = salt_dir.join("encryption.salt");
+
+        if salt_path.exists() {
+            return std::fs::read(&salt_path)
+                .map_err(|e| format!("Failed to read salt file: {e}"));
+        }
+
+        // Generate new salt
+        let mut salt = vec![0u8; 32];
+        rand::thread_rng().fill_bytes(&mut salt);
+
+        // Try keychain, fall back to file
+        match set_generic_password("engram-cloud", "db-encryption-salt", &salt) {
+            Ok(_) => {}
             Err(_) => {
-                let mut salt = vec![0u8; 32];
-                rand::thread_rng().fill_bytes(&mut salt);
-                set_generic_password("engram-cloud", "db-encryption-salt", &salt)
-                    .map_err(|e| format!("Failed to store encryption salt in keychain: {e}"))?;
-                Ok(salt)
+                std::fs::create_dir_all(&salt_dir)
+                    .map_err(|e| format!("Failed to create salt directory: {e}"))?;
+                std::fs::write(&salt_path, &salt)
+                    .map_err(|e| format!("Failed to write salt file: {e}"))?;
+                println!("Salt stored in file (keychain unavailable in dev mode)");
             }
         }
+        Ok(salt)
     }
 
     fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
@@ -183,9 +206,8 @@ impl EncryptedDb {
 
         let conn = Self::open_connection(db_path, &key)?;
 
-        // Cache derived key in keychain so biometric unlock can reuse it
-        set_generic_password("engram-cloud", "db-key", &key)
-            .map_err(|e| format!("Failed to cache key for biometric unlock: {e}"))?;
+        // Cache derived key in keychain so biometric unlock can reuse it (ignore failure in dev)
+        let _ = set_generic_password("engram-cloud", "db-key", &key);
 
         self.key = key;
         self.conn = Some(conn);
