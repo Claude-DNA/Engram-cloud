@@ -66,8 +66,14 @@ export default function OnboardingPassphrase() {
 
   const handleContinue = async () => {
     // Recovery key is already hashed and stored by generate_recovery_key
-    setFirstLaunch(false);
-    await unlock(passphrase);
+    setLoading(true);
+    try {
+      await unlock(passphrase);
+      setFirstLaunch(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+      setLoading(false);
+    }
   };
 
   return (
