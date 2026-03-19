@@ -35,9 +35,9 @@ describe("runMigrations", () => {
     expect(rows).toHaveLength(1);
   });
 
-  it("creates the engrams table from the initial migration", async () => {
+  it("creates the persons table from the initial migration", async () => {
     await runMigrations();
-    const rows = await db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='engrams'", []);
+    const rows = await db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='persons'", []);
     expect(rows).toHaveLength(1);
   });
 });

@@ -19,6 +19,37 @@ function getMigrations(): Migration[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * Splits a SQL string into individual statements, correctly handling
+ * triggers and other constructs that contain BEGIN...END blocks.
+ */
+function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let depth = 0;
+  let lastCut = 0;
+
+  const re = /\b(BEGIN|END)\b|;/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(sql)) !== null) {
+    const token = match[0].toUpperCase();
+    if (token === "BEGIN") {
+      depth++;
+    } else if (token === "END") {
+      if (depth > 0) depth--;
+    } else if (token === ";" && depth === 0) {
+      const stmt = sql.slice(lastCut, match.index).trim();
+      if (stmt) statements.push(stmt);
+      lastCut = match.index + 1;
+    }
+  }
+
+  const remaining = sql.slice(lastCut).trim();
+  if (remaining) statements.push(remaining);
+
+  return statements;
+}
+
 export async function runMigrations(): Promise<void> {
   await db.execute(
     `CREATE TABLE IF NOT EXISTS _migrations (
@@ -40,15 +71,29 @@ export async function runMigrations(): Promise<void> {
     const ts = new Date().toISOString();
     console.log(`[${ts}] Running migration: ${migration.name}`);
 
-    const statements = migration.sql
-      .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    const statements = splitSqlStatements(migration.sql);
 
     await db.execute("BEGIN", []);
+    let fts5Available = true;
     try {
       for (const stmt of statements) {
-        await db.execute(stmt, []);
+        const upperStmt = stmt.toUpperCase();
+        const isFtsDependent = upperStmt.includes("_FTS");
+        // Skip FTS-dependent statements when FTS5 is not available
+        if (isFtsDependent && !fts5Available) {
+          continue;
+        }
+        try {
+          await db.execute(stmt, []);
+        } catch (stmtErr) {
+          const msg = String(stmtErr);
+          if (isFtsDependent && (msg.includes("no such module: fts5") || msg.includes("no such table"))) {
+            // FTS5 not available in this SQLite build — disable FTS for remaining statements
+            fts5Available = false;
+            continue;
+          }
+          throw stmtErr;
+        }
       }
       await db.execute(
         "INSERT INTO _migrations (name, applied_at) VALUES (?, ?)",
