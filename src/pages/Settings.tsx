@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { os } from '@tauri-apps/api';
 import ProfileSettings from '../views/settings/ProfileSettings';
 import SecuritySettings from '../views/settings/SecuritySettings';
 import AISettings from '../views/settings/AISettings';
 import ImportSettings from '../views/settings/ImportSettings';
 import ExportSettings from '../views/settings/ExportSettings';
 import AboutSettings from '../views/settings/AboutSettings';
+import MacOSSettings from '../views/settings/MacOSSettings';
 
-type Section = 'profile' | 'security' | 'ai' | 'import' | 'export' | 'about';
+type Section = 'profile' | 'security' | 'ai' | 'import' | 'export' | 'about' | 'macos';
 
-const SECTIONS: { id: Section; label: string; icon: string }[] = [
+const BASE_SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: '👤' },
   { id: 'security', label: 'Security', icon: '🔐' },
   { id: 'ai', label: 'AI', icon: '✨' },
@@ -17,8 +19,21 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: 'about', label: 'About', icon: 'ℹ️' },
 ];
 
+const MACOS_SECTION: { id: Section; label: string; icon: string } = {
+  id: 'macos',
+  label: 'macOS',
+  icon: '',
+};
+
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<Section>('profile');
+  const [isMac, setIsMac] = useState(false);
+
+  useEffect(() => {
+    os.platform().then((p) => setIsMac(p === 'macos')).catch(() => {});
+  }, []);
+
+  const sections = isMac ? [...BASE_SECTIONS, MACOS_SECTION] : BASE_SECTIONS;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -28,6 +43,7 @@ export default function Settings() {
       case 'import': return <ImportSettings />;
       case 'export': return <ExportSettings />;
       case 'about': return <AboutSettings />;
+      case 'macos': return <MacOSSettings />;
     }
   };
 
@@ -36,7 +52,7 @@ export default function Settings() {
       {/* Sidebar */}
       <nav className="w-44 shrink-0 border-r border-slate-700/50 flex flex-col gap-0.5 p-2 overflow-y-auto">
         <p className="text-xs text-slate-500 uppercase tracking-wide px-3 py-2 font-medium">Settings</p>
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
@@ -46,7 +62,7 @@ export default function Settings() {
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/30'
             }`}
           >
-            <span>{s.icon}</span>
+            {s.icon && <span>{s.icon}</span>}
             {s.label}
           </button>
         ))}

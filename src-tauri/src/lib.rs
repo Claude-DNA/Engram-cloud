@@ -1,7 +1,9 @@
 mod ai;
 mod auth;
 mod db;
+mod deeplink;
 mod keychain;
+mod spotlight;
 
 use db::EncryptedDb;
 use serde_json::{json, Value};
@@ -105,6 +107,8 @@ fn reset_and_unlock_database(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir().expect("No app data directory");
             std::fs::create_dir_all(&app_data_dir)?;
@@ -142,7 +146,13 @@ pub fn run() {
             keychain::delete_api_key,
             keychain::has_api_key,
             ai::test_api_key,
-            ai::ai_send_prompt
+            ai::ai_send_prompt,
+            deeplink::handle_deeplink_url,
+            spotlight::spotlight_index,
+            spotlight::spotlight_remove,
+            spotlight::spotlight_reindex_all,
+            spotlight::spotlight_get_indexed_ids,
+            spotlight::spotlight_search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
