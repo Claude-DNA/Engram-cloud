@@ -9,6 +9,7 @@ import Experience from './pages/Experience';
 import Timeline from './pages/Timeline';
 import Graph from './pages/Graph';
 import Settings from './pages/Settings';
+import ImportView from './views/ImportView';
 import LockScreen from './views/LockScreen';
 import OnboardingPassphrase from './views/OnboardingPassphrase';
 import { useAuthStore } from './stores/authStore';
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/timeline" element={<ErrorBoundary><Timeline /></ErrorBoundary>} />
           <Route path="/graph" element={<ErrorBoundary><Graph /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
+          <Route path="/import" element={<ErrorBoundary><ImportView /></ErrorBoundary>} />
         </Route>
       </Routes>
     </ErrorBoundary>

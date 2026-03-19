@@ -129,6 +129,18 @@ export default function Sidebar() {
           🔗 Graph
         </NavLink>
         <NavLink
+          to="/import"
+          className={({ isActive }) =>
+            `block px-3 py-2 text-sm transition-colors ${
+              isActive
+                ? 'text-accent-gold bg-accent-gold/10'
+                : 'text-text-secondary hover:text-text-primary hover:bg-background/50'
+            }`
+          }
+        >
+          📥 Import
+        </NavLink>
+        <NavLink
           to="/settings"
           className={({ isActive }) =>
             `block px-3 py-2 text-sm transition-colors ${
