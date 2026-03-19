@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useCallback, useState } from 'react';
 import { useEngramStore } from '../stores/engramStore';
+import { productionLoader } from '../stores/storeLoader';
+import { createEngramItem } from '../stores/engramService';
 import SearchBar from '../components/SearchBar';
 import EngramCard from '../components/EngramCard';
 import EmptyState from '../components/EmptyState';
@@ -17,7 +19,8 @@ export default function Cloud() {
   const isLoading = useEngramStore((s) => s.isLoading);
   const hasMore = useEngramStore((s) => s.hasMore);
   const activePersonId = useEngramStore((s) => s.activePersonId);
-  const itemCreated = useEngramStore((s) => s.itemCreated);
+  const loadMore = useEngramStore((s) => s.loadMore);
+  const setError = useEngramStore((s) => s.setError);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -40,7 +43,7 @@ export default function Cloud() {
     [navigate],
   );
 
-  const handleCreate = (data: {
+  const handleCreate = async (data: {
     cloud_type: CloudType;
     title: string;
     content: string;
@@ -49,22 +52,15 @@ export default function Cloud() {
   }) => {
     if (!activePersonId) return;
 
-    // In full wiring: repo.create() first, then surgical update
-    const newItem: EngramItem = {
-      id: Date.now(), // temp ID — replaced by DB in real flow
-      uuid: '',
-      person_id: activePersonId,
-      cloud_type: data.cloud_type,
-      title: data.title,
-      content: data.content,
-      date: data.date,
-      life_phase_id: data.life_phase_id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    } as EngramItem;
-    itemCreated(newItem);
-    setCreateModalOpen(false);
+    try {
+      await createEngramItem({
+        person_id: activePersonId,
+        ...data,
+      });
+      setCreateModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create engram');
+    }
   };
 
   const handleScroll = useCallback(
@@ -72,10 +68,10 @@ export default function Cloud() {
       if (!hasMore || isLoading) return;
       const el = e.currentTarget;
       if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
-        // loadMore wired when connected to real DB
+        loadMore(productionLoader);
       }
     },
-    [hasMore, isLoading],
+    [hasMore, isLoading, loadMore],
   );
 
   return (

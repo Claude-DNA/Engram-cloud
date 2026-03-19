@@ -24,16 +24,17 @@ describe("runMigrations", () => {
   it("records all applied migrations by name", async () => {
     await runMigrations();
     const rows = await db.query("SELECT name FROM _migrations ORDER BY name", []);
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     expect(rows[0].name).toBe("001_initial");
     expect(rows[1].name).toBe("002_uuid_and_constraints");
+    expect(rows[2].name).toBe("003_settings");
   });
 
   it("is idempotent when run multiple times", async () => {
     await runMigrations();
     await runMigrations();
     const rows = await db.query("SELECT name FROM _migrations", []);
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
   });
 
   it("creates the persons table from the initial migration", async () => {

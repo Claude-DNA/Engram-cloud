@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { useEngramStore } from '../stores/engramStore';
+import { updateEngramItem, deleteEngramItem } from '../stores/engramService';
 import EngramModal from '../components/EngramModal';
 import ConfirmDialog from '../components/ConfirmDialog';
-import type { CloudType, EngramItem } from '../types/engram';
+import type { CloudType } from '../types/engram';
 
 const CLOUD_BADGES: Record<CloudType, { icon: string; label: string; color: string }> = {
   memory: { icon: '🧠', label: 'Memory', color: 'bg-purple-900/40 text-purple-300' },
@@ -19,8 +20,7 @@ export default function Experience() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const engramItems = useEngramStore((s) => s.engramItems);
-  const itemUpdated = useEngramStore((s) => s.itemUpdated);
-  const itemDeleted = useEngramStore((s) => s.itemDeleted);
+  const setError = useEngramStore((s) => s.setError);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -47,28 +47,29 @@ export default function Experience() {
 
   const badge = CLOUD_BADGES[item.cloud_type];
 
-  const handleSave = (data: {
+  const handleSave = async (data: {
     cloud_type: CloudType;
     title: string;
     content: string;
     date: string | null;
     life_phase_id: number | null;
   }) => {
-    // In full wiring: repo.update() first, then surgical update
-    const updated: EngramItem = {
-      ...item,
-      ...data,
-      updated_at: new Date().toISOString(),
-    } as EngramItem;
-    itemUpdated(updated);
-    setEditModalOpen(false);
+    try {
+      await updateEngramItem(item.id, data);
+      setEditModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update engram');
+    }
   };
 
-  const handleDelete = () => {
-    // In full wiring: repo.softDelete() first, then surgical delete
-    itemDeleted(item.id);
-    setDeleteDialogOpen(false);
-    navigate(-1);
+  const handleDelete = async () => {
+    try {
+      await deleteEngramItem(item.id);
+      setDeleteDialogOpen(false);
+      navigate(-1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete engram');
+    }
   };
 
   return (
@@ -120,6 +121,7 @@ export default function Experience() {
       <div className="text-text-secondary/60 text-xs space-y-1">
         <p>Created: {item.created_at}</p>
         <p>Updated: {item.updated_at}</p>
+        {item.uuid && <p>UUID: {item.uuid}</p>}
         {item.life_phase_id && <p>Life Phase ID: {item.life_phase_id}</p>}
       </div>
 

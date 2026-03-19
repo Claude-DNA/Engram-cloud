@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEngramStore } from '../stores/engramStore';
+import { createLifePhase, updateLifePhase, deleteLifePhase } from '../stores/engramService';
 import type { LifePhase } from '../types/engram';
 
 interface PhaseFormData {
@@ -16,11 +17,9 @@ export default function Timeline() {
   const navigate = useNavigate();
   const lifePhases = useEngramStore((s) => s.lifePhases);
   const engramItems = useEngramStore((s) => s.engramItems);
-  const lifePhaseCreated = useEngramStore((s) => s.lifePhaseCreated);
-  const lifePhaseUpdated = useEngramStore((s) => s.lifePhaseUpdated);
-  const lifePhaseDeleted = useEngramStore((s) => s.lifePhaseDeleted);
   const setActiveCloudType = useEngramStore((s) => s.setActiveCloudType);
   const activePersonId = useEngramStore((s) => s.activePersonId);
+  const setError = useEngramStore((s) => s.setError);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -29,10 +28,9 @@ export default function Timeline() {
   const getItemCount = (phaseId: number) =>
     engramItems.filter((i) => i.life_phase_id === phaseId).length;
 
-  const handlePhaseClick = (phase: LifePhase) => {
-    // Navigate to cloud view filtered by this phase
+  const handlePhaseClick = (_phase: LifePhase) => {
     setActiveCloudType(null);
-    navigate(`/cloud/memory`); // TODO: add life_phase filter to URL
+    navigate(`/cloud/memory`);
   };
 
   const startEdit = (phase: LifePhase) => {
@@ -45,49 +43,44 @@ export default function Timeline() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.start_date) return;
 
-    if (editingId !== null) {
-      // Update existing
-      const existing = lifePhases.find((p) => p.id === editingId);
-      if (existing) {
-        const updated: LifePhase = {
-          ...existing,
+    try {
+      if (editingId !== null) {
+        await updateLifePhase(editingId, {
           name: formData.name,
           start_date: formData.start_date,
           end_date: formData.end_date || null,
           description: formData.description || null,
-          updated_at: new Date().toISOString(),
-        };
-        lifePhaseUpdated(updated);
+        });
+        setEditingId(null);
+      } else {
+        if (!activePersonId) return;
+        await createLifePhase({
+          person_id: activePersonId,
+          name: formData.name,
+          start_date: formData.start_date,
+          end_date: formData.end_date || null,
+          description: formData.description || null,
+        });
+        setShowCreateForm(false);
       }
-      setEditingId(null);
-    } else {
-      // Create new — in full wiring: repo.create() first
-      if (!activePersonId) return;
-      const newPhase: LifePhase = {
-        id: Date.now(),
-        uuid: '',
-        person_id: activePersonId,
-        name: formData.name,
-        start_date: formData.start_date,
-        end_date: formData.end_date || null,
-        description: formData.description || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      lifePhaseCreated(newPhase);
-      setShowCreateForm(false);
+      setFormData(emptyForm);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save life phase');
     }
-    setFormData(emptyForm);
   };
 
-  const handleDelete = (id: number) => {
-    lifePhaseDeleted(id);
-    if (editingId === id) {
-      setEditingId(null);
-      setFormData(emptyForm);
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteLifePhase(id);
+      if (editingId === id) {
+        setEditingId(null);
+        setFormData(emptyForm);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete life phase');
     }
   };
 
@@ -172,12 +165,10 @@ export default function Timeline() {
         </button>
       </div>
 
-      {/* Create form */}
       {showCreateForm && !editingId && (
         <div className="mb-4">{renderForm(false)}</div>
       )}
 
-      {/* Timeline */}
       {lifePhases.length === 0 && !showCreateForm ? (
         <div className="text-center py-16">
           <span className="text-4xl block mb-3">📅</span>
@@ -188,16 +179,13 @@ export default function Timeline() {
         </div>
       ) : (
         <div className="relative">
-          {/* Vertical line */}
           <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
-
-          {lifePhases.map((phase, idx) => {
+          {lifePhases.map((phase) => {
             const count = getItemCount(phase.id);
             const isEditing = editingId === phase.id;
 
             return (
               <div key={phase.id} className="relative pl-10 pb-6">
-                {/* Dot */}
                 <div
                   className={`absolute left-[11px] top-1.5 w-[10px] h-[10px] rounded-full border-2 ${
                     phase.end_date

@@ -3,5 +3,6 @@ export { EngramItemRepository, engramItemRepository } from './EngramItemReposito
 export { LifePhaseRepository, lifePhaseRepository } from './LifePhaseRepository';
 export { TransformationRepository, transformationRepository } from './TransformationRepository';
 export { ExperienceLinksRepository, experienceLinksRepository } from './ExperienceLinksRepository';
+export { SettingsRepository, settingsRepository } from './SettingsRepository';
 
 export type { EngramItemFilters } from './EngramItemRepository';
