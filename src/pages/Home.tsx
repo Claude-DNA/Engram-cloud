@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { useEngramStore } from '../stores/engramStore';
 import type { CloudType } from '../types/engram';
 import { VALID_CLOUD_TYPES } from '../types/engram';
@@ -19,13 +20,15 @@ export default function Home() {
   const isHydrated = useEngramStore((s) => s.isHydrated);
   const setActiveCloudType = useEngramStore((s) => s.setActiveCloudType);
 
-  const counts = VALID_CLOUD_TYPES.reduce(
-    (acc, type) => {
-      acc[type] = engramItems.filter((i) => i.cloud_type === type).length;
-      return acc;
-    },
-    {} as Record<CloudType, number>,
-  );
+  // Single pass to count all types (batch instead of 7 separate filters)
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const type of VALID_CLOUD_TYPES) c[type] = 0;
+    for (const item of engramItems) {
+      if (c[item.cloud_type] !== undefined) c[item.cloud_type]++;
+    }
+    return c as Record<CloudType, number>;
+  }, [engramItems]);
 
   const handleCloudClick = (type: CloudType) => {
     setActiveCloudType(type);
@@ -34,7 +37,6 @@ export default function Home() {
 
   return (
     <div className="p-6">
-      {/* Hero */}
       <div className="text-center mb-8 pt-4">
         <h1 className="text-3xl font-bold text-text-primary mb-2">
           Engram <span className="text-accent-gold">Cloud</span>
@@ -46,7 +48,6 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Cloud type grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-3xl mx-auto">
         {VALID_CLOUD_TYPES.map((type) => {
           const info = CLOUD_INFO[type];
