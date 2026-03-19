@@ -6,14 +6,17 @@ import AppLoader from './components/AppLoader';
 import './index.css';
 import { runMigrations } from './lib/migrations';
 import { useEngramStore } from './stores/engramStore';
+import { useAppStore } from './store';
 import { productionLoader } from './stores/storeLoader';
+import { settingsRepository } from './repositories';
 
 /**
- * Startup sequence (per Cowork Phase 3 guidance):
- * 1. Render loading skeleton immediately (no blank screen)
- * 2. Run migrations (creates/updates tables)
- * 3. Hydrate Zustand store from SQLite (paginated, recent 50)
- * 4. Re-render with full app
+ * Startup sequence:
+ * 1. Render loading skeleton immediately
+ * 2. Run migrations
+ * 3. Load settings (theme)
+ * 4. Hydrate Zustand store from SQLite
+ * 5. Re-render with full app
  */
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
@@ -30,10 +33,14 @@ async function init() {
     // 2. Run migrations
     await runMigrations();
 
-    // 3. Hydrate store from SQLite
+    // 3. Load and apply theme
+    const savedTheme = await settingsRepository.get('theme');
+    useAppStore.getState().initTheme(savedTheme);
+
+    // 4. Hydrate store from SQLite
     await useEngramStore.getState().hydrate(productionLoader);
 
-    // 4. Render full app
+    // 5. Render full app
     root.render(
       <React.StrictMode>
         <BrowserRouter>
