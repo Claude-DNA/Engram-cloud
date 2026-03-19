@@ -64,10 +64,10 @@ export default function OnboardingPassphrase() {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     // Recovery key is already hashed and stored by generate_recovery_key
     setFirstLaunch(false);
-    unlock();
+    await unlock(passphrase);
   };
 
   return (

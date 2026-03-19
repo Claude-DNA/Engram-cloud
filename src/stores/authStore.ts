@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { settingsRepository } from '../repositories';
+import { initDatabase } from '../lib/initDatabase';
 
 interface AuthState {
   isLocked: boolean;
@@ -46,6 +47,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
     unlock: async (passphrase?: string) => {
       if (passphrase) {
         await invoke('unlock_database', { passphrase });
+        await initDatabase();
         set({
           isLocked: false,
           dbReady: true,
@@ -65,6 +67,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
 
     unlockBiometric: async () => {
       await invoke('unlock_database_biometric');
+        await initDatabase();
       set({
         isLocked: false,
         dbReady: true,
