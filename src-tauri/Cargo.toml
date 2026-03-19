@@ -29,6 +29,7 @@ hex = "0.4"
 argon2 = "0.5"
 rand = "0.8"
 bip39 = "1"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 
 [profile.dev]
 incremental = true

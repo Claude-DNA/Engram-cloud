@@ -1,3 +1,4 @@
+mod ai;
 mod auth;
 mod db;
 mod keychain;
@@ -139,7 +140,8 @@ pub fn run() {
             keychain::store_api_key,
             keychain::get_api_key,
             keychain::delete_api_key,
-            keychain::has_api_key
+            keychain::has_api_key,
+            ai::test_api_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
