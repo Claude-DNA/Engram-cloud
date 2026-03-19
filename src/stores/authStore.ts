@@ -4,6 +4,7 @@ import { settingsRepository } from '../repositories';
 
 interface AuthState {
   isLocked: boolean;
+  dbReady: boolean;
   lastActivity: number;
   lockTimeoutMinutes: number;
   failedAttempts: number;
@@ -13,7 +14,7 @@ interface AuthState {
 }
 
 interface AuthActions {
-  unlock: () => void;
+  unlock: (passphrase?: string) => Promise<void>;
   lock: () => void;
   resetActivity: () => void;
   checkTimeout: () => void;
@@ -32,6 +33,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
 
   return {
     isLocked: true,
+    dbReady: false,
     lastActivity: Date.now(),
     lockTimeoutMinutes: 5,
     failedAttempts: 0,
@@ -39,15 +41,30 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
     isFirstLaunch: false,
     biometricAvailable: false,
 
-    unlock: () =>
-      set({
-        isLocked: false,
-        lastActivity: Date.now(),
-        failedAttempts: 0,
-        cooldownUntil: null,
-      }),
+    unlock: async (passphrase?: string) => {
+      if (passphrase) {
+        await invoke('unlock_database', { passphrase });
+        set({
+          isLocked: false,
+          dbReady: true,
+          lastActivity: Date.now(),
+          failedAttempts: 0,
+          cooldownUntil: null,
+        });
+      } else {
+        set({
+          isLocked: false,
+          lastActivity: Date.now(),
+          failedAttempts: 0,
+          cooldownUntil: null,
+        });
+      }
+    },
 
-    lock: () => set({ isLocked: true }),
+    lock: () => {
+      invoke('lock_database').catch(console.error);
+      set({ isLocked: true, dbReady: false });
+    },
 
     resetActivity: () => set({ lastActivity: Date.now() }),
 
@@ -57,7 +74,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
       const idleMs = Date.now() - lastActivity;
       const timeoutMs = lockTimeoutMinutes * 60 * 1_000;
       if (idleMs >= timeoutMs) {
-        set({ isLocked: true });
+        get().lock();
       }
     },
 

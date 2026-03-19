@@ -11,6 +11,8 @@ export default function LockScreen() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Recovery modal state
+  const [decrypting, setDecrypting] = useState(false);
+
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryWords, setRecoveryWords] = useState('');
   const [verifiedWords, setVerifiedWords] = useState<string[]>([]);
@@ -70,7 +72,15 @@ export default function LockScreen() {
     try {
       const ok = await invoke<boolean>('verify_passphrase', { passphrase });
       if (ok) {
-        unlock();
+        setDecrypting(true);
+        try {
+          await unlock(passphrase);
+        } catch (dbErr: unknown) {
+          setDecrypting(false);
+          setError(dbErr instanceof Error ? dbErr.message : 'Failed to decrypt database');
+          triggerShake();
+          inputRef.current?.focus();
+        }
       } else {
         setPassphrase('');
         setError('Incorrect passphrase. Please try again.');
@@ -142,7 +152,7 @@ export default function LockScreen() {
         newPassphrase,
       });
       setShowRecovery(false);
-      unlock();
+      await unlock(newPassphrase);
     } catch (err: unknown) {
       setRecoveryError(err instanceof Error ? err.message : 'Failed to reset passphrase');
     } finally {
@@ -239,11 +249,11 @@ export default function LockScreen() {
 
           <button
             type="submit"
-            disabled={!passphrase || countdown > 0}
+            disabled={!passphrase || countdown > 0 || decrypting}
             className="mt-4 w-full rounded-lg bg-amber-500/90 px-4 py-3 font-semibold text-slate-900 transition-all hover:bg-amber-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             style={{ color: '#1e1b2e' }}
           >
-            Unlock
+            {decrypting ? 'Decrypting…' : 'Unlock'}
           </button>
         </form>
 
