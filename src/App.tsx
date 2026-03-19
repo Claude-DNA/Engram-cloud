@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { listen } from '@tauri-apps/api/event';
 import { register, unregisterAll } from '@tauri-apps/plugin-global-shortcut';
-import { os } from '@tauri-apps/api';
 import Layout from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import QuickCaptureModal from './components/QuickCaptureModal';
@@ -79,15 +78,8 @@ export default function App() {
 
     const setup = async () => {
       // Only register macOS-specific features on macOS
-      let platform = 'unknown';
-      try {
-        platform = await os.platform();
-      } catch {
-        // Not in Tauri context (tests)
-        return;
-      }
-
-      if (platform !== 'macos') return;
+      // Only macOS - check via userAgent
+      if (!navigator.userAgent.includes('Mac')) return;
 
       // 1. Global hotkey: Cmd+Shift+E → Quick Capture
       try {
