@@ -9,19 +9,10 @@ import { useEngramStore } from './stores/engramStore';
 import { useAppStore } from './store';
 import { productionLoader } from './stores/storeLoader';
 import { settingsRepository } from './repositories';
-
-/**
- * Startup sequence:
- * 1. Render loading skeleton immediately
- * 2. Run migrations
- * 3. Load settings (theme)
- * 4. Hydrate Zustand store from SQLite
- * 5. Re-render with full app
- */
+import { loadTransformationsForPerson } from './stores/transformationService';
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 
-// 1. Show loading skeleton immediately
 root.render(
   <React.StrictMode>
     <AppLoader />
@@ -30,17 +21,19 @@ root.render(
 
 async function init() {
   try {
-    // 2. Run migrations
     await runMigrations();
 
-    // 3. Load and apply theme
     const savedTheme = await settingsRepository.get('theme');
     useAppStore.getState().initTheme(savedTheme);
 
-    // 4. Hydrate store from SQLite
     await useEngramStore.getState().hydrate(productionLoader);
 
-    // 5. Render full app
+    // Load transformations for active person
+    const activePersonId = useEngramStore.getState().activePersonId;
+    if (activePersonId !== null) {
+      await loadTransformationsForPerson(activePersonId);
+    }
+
     root.render(
       <React.StrictMode>
         <BrowserRouter>

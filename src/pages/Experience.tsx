@@ -1,9 +1,17 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEngramStore } from '../stores/engramStore';
 import { updateEngramItem, deleteEngramItem } from '../stores/engramService';
+import {
+  getLinksForItem,
+  createTransformation,
+  deleteTransformation,
+  onTransformationsChange,
+} from '../stores/transformationService';
 import EngramModal from '../components/EngramModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import LinkEngramModal from '../components/LinkEngramModal';
+import ConnectionsList from '../components/ConnectionsList';
 import type { CloudType } from '../types/engram';
 
 const CLOUD_BADGES: Record<CloudType, { icon: string; label: string; color: string }> = {
@@ -20,15 +28,86 @@ export default function Experience() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const engramItems = useEngramStore((s) => s.engramItems);
+  const activePersonId = useEngramStore((s) => s.activePersonId);
   const setError = useEngramStore((s) => s.setError);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [, forceUpdate] = useState(0);
+
+  // Subscribe to transformation changes
+  useEffect(() => {
+    return onTransformationsChange(() => forceUpdate((n) => n + 1));
+  }, []);
 
   const item = useMemo(
     () => engramItems.find((i) => i.id === Number(id)) ?? null,
     [engramItems, id],
   );
+
+  const links = useMemo(
+    () => (item ? getLinksForItem(item.id) : { forward: [], inverse: [] }),
+    [item, /* re-derive on forceUpdate */],
+  );
+
+  const existingLinkIds = useMemo(() => {
+    if (!item) return [];
+    return [
+      ...links.forward.map((t) => t.target_id),
+      ...links.inverse.map((t) => t.source_id),
+    ];
+  }, [item, links]);
+
+  const handleSave = useCallback(async (data: {
+    cloud_type: CloudType;
+    title: string;
+    content: string;
+    date: string | null;
+    life_phase_id: number | null;
+  }) => {
+    if (!item) return;
+    try {
+      await updateEngramItem(item.id, data);
+      setEditModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update engram');
+    }
+  }, [item, setError]);
+
+  const handleDelete = useCallback(async () => {
+    if (!item) return;
+    try {
+      await deleteEngramItem(item.id);
+      setDeleteDialogOpen(false);
+      navigate(-1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete engram');
+    }
+  }, [item, navigate, setError]);
+
+  const handleLink = useCallback(async (targetId: number, transformationType: string) => {
+    if (!item || !activePersonId) return;
+    try {
+      await createTransformation({
+        person_id: activePersonId,
+        source_id: item.id,
+        target_id: targetId,
+        transformation_type: transformationType,
+      });
+      setLinkModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create link');
+    }
+  }, [item, activePersonId, setError]);
+
+  const handleUnlink = useCallback(async (transformationId: number) => {
+    try {
+      await deleteTransformation(transformationId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove link');
+    }
+  }, [setError]);
 
   if (!item) {
     return (
@@ -46,31 +125,6 @@ export default function Experience() {
   }
 
   const badge = CLOUD_BADGES[item.cloud_type];
-
-  const handleSave = async (data: {
-    cloud_type: CloudType;
-    title: string;
-    content: string;
-    date: string | null;
-    life_phase_id: number | null;
-  }) => {
-    try {
-      await updateEngramItem(item.id, data);
-      setEditModalOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update engram');
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await deleteEngramItem(item.id);
-      setDeleteDialogOpen(false);
-      navigate(-1);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete engram');
-    }
-  };
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -117,6 +171,17 @@ export default function Experience() {
         </p>
       </div>
 
+      {/* Connections */}
+      <div className="mb-6">
+        <ConnectionsList
+          itemId={item.id}
+          forward={links.forward}
+          inverse={links.inverse}
+          onDelete={handleUnlink}
+          onAddClick={() => setLinkModalOpen(true)}
+        />
+      </div>
+
       {/* Metadata */}
       <div className="text-text-secondary/60 text-xs space-y-1">
         <p>Created: {item.created_at}</p>
@@ -138,6 +203,13 @@ export default function Experience() {
         message={`Are you sure you want to delete "${item.title}"? This action can be undone later.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteDialogOpen(false)}
+      />
+      <LinkEngramModal
+        isOpen={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        onLink={handleLink}
+        sourceItem={item}
+        existingLinkIds={existingLinkIds}
       />
     </div>
   );
