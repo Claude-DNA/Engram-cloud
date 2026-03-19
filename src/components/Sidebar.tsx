@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useEngramStore } from '../stores/engramStore';
+import { productionLoader } from '../stores/storeLoader';
 import { useAppStore } from '../store';
 import type { CloudType } from '../types/engram';
 import { VALID_CLOUD_TYPES } from '../types/engram';
@@ -31,6 +32,7 @@ export default function Sidebar() {
   const setActivePersonId = useEngramStore((s) => s.setActivePersonId);
   const activeCloudType = useEngramStore((s) => s.activeCloudType);
   const setActiveCloudType = useEngramStore((s) => s.setActiveCloudType);
+  const hydrate = useEngramStore((s) => s.hydrate);
   const navigate = useNavigate();
 
   if (!sidebarOpen) return null;
@@ -42,6 +44,15 @@ export default function Sidebar() {
     } else {
       setActiveCloudType(type);
       navigate(`/cloud/${type}`);
+    }
+  };
+
+  const handlePersonChange = async (newId: number | null) => {
+    setActivePersonId(newId);
+    // Rehydrate items for the new person
+    if (newId !== null) {
+      // Reset and reload for new person
+      await hydrate(productionLoader);
     }
   };
 
@@ -59,7 +70,7 @@ export default function Sidebar() {
         <select
           id="person-select"
           value={activePersonId ?? ''}
-          onChange={(e) => setActivePersonId(e.target.value ? Number(e.target.value) : null)}
+          onChange={(e) => handlePersonChange(e.target.value ? Number(e.target.value) : null)}
           className="w-full bg-background border border-border rounded px-2 py-1.5 text-text-primary text-sm focus:outline-none focus:border-accent-gold"
         >
           {persons.length === 0 && <option value="">No persons</option>}
