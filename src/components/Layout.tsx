@@ -1,17 +1,19 @@
-import { Outlet } from "react-router-dom";
+import { Outlet } from 'react-router-dom';
+import Titlebar from './Titlebar';
+import Sidebar from './Sidebar';
+import Toast from './Toast';
 
 export default function Layout() {
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* macOS overlay titlebar spacer */}
-      <div data-tauri-drag-region className="h-8 w-full bg-surface border-b border-border flex items-center px-4">
-        <span className="text-text-secondary text-xs font-medium ml-20">Engram Cloud</span>
-      </div>
+      <Titlebar />
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-auto">
+        <Sidebar />
+        <main className="flex-1 overflow-auto" role="main">
           <Outlet />
         </main>
       </div>
+      <Toast />
     </div>
   );
 }
