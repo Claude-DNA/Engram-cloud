@@ -40,3 +40,23 @@ body {
 [data-tauri-drag-region] {
   -webkit-app-region: drag;
 }
+
+/* Lock screen shake animation */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15%,
+  55% {
+    transform: translateX(-8px);
+  }
+  35%,
+  75% {
+    transform: translateX(8px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.45s ease-in-out;
+}

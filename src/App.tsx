@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -7,8 +8,37 @@ import Experience from './pages/Experience';
 import Timeline from './pages/Timeline';
 import Graph from './pages/Graph';
 import Settings from './pages/Settings';
+import LockScreen from './views/LockScreen';
+import OnboardingPassphrase from './views/OnboardingPassphrase';
+import { useAuthStore } from './stores/authStore';
 
 export default function App() {
+  const isLocked = useAuthStore((s) => s.isLocked);
+  const isFirstLaunch = useAuthStore((s) => s.isFirstLaunch);
+  const initialize = useAuthStore((s) => s.initialize);
+  const resetActivity = useAuthStore((s) => s.resetActivity);
+
+  // Initialise auth state once on mount
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Track user activity for idle-lock timeout
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    const handler = () => resetActivity();
+    events.forEach((e) => window.addEventListener(e, handler, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, handler));
+  }, [resetActivity]);
+
+  if (isFirstLaunch) {
+    return <OnboardingPassphrase />;
+  }
+
+  if (isLocked) {
+    return <LockScreen />;
+  }
+
   return (
     <ErrorBoundary>
       <Routes>

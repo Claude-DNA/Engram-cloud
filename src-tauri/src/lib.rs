@@ -1,3 +1,5 @@
+mod auth;
+
 use serde_json::{json, Value};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow},
@@ -160,7 +162,15 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![db_execute, db_query, db_get_path])
+        .invoke_handler(tauri::generate_handler![
+            db_execute,
+            db_query,
+            db_get_path,
+            auth::create_passphrase,
+            auth::verify_passphrase,
+            auth::has_passphrase,
+            auth::get_cooldown_remaining
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
