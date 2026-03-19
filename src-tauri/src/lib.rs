@@ -1,5 +1,6 @@
 mod auth;
 mod db;
+mod keychain;
 
 use db::EncryptedDb;
 use serde_json::{json, Value};
@@ -134,7 +135,11 @@ pub fn run() {
             auth::verify_recovery_key,
             auth::reset_passphrase_with_recovery,
             auth::check_biometric_availability,
-            auth::biometric_authenticate
+            auth::biometric_authenticate,
+            keychain::store_api_key,
+            keychain::get_api_key,
+            keychain::delete_api_key,
+            keychain::has_api_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

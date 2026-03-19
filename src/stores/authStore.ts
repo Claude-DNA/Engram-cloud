@@ -15,6 +15,8 @@ interface AuthState {
 
 interface AuthActions {
   unlock: (passphrase?: string) => Promise<void>;
+  unlockBiometric: () => Promise<void>;
+  setUnlocked: () => void;
   lock: () => void;
   resetActivity: () => void;
   checkTimeout: () => void;
@@ -60,6 +62,26 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => {
         });
       }
     },
+
+    unlockBiometric: async () => {
+      await invoke('unlock_database_biometric');
+      set({
+        isLocked: false,
+        dbReady: true,
+        lastActivity: Date.now(),
+        failedAttempts: 0,
+        cooldownUntil: null,
+      });
+    },
+
+    setUnlocked: () =>
+      set({
+        isLocked: false,
+        dbReady: true,
+        lastActivity: Date.now(),
+        failedAttempts: 0,
+        cooldownUntil: null,
+      }),
 
     lock: () => {
       invoke('lock_database').catch(console.error);

@@ -23,6 +23,8 @@ export default function LockScreen() {
   const [recoveryLoading, setRecoveryLoading] = useState(false);
 
   const unlock = useAuthStore((s) => s.unlock);
+  const unlockBiometric = useAuthStore((s) => s.unlockBiometric);
+  const setUnlocked = useAuthStore((s) => s.setUnlocked);
   const cooldownUntil = useAuthStore((s) => s.cooldownUntil);
   const setCooldownUntil = useAuthStore((s) => s.setCooldownUntil);
   const biometricAvailable = useAuthStore((s) => s.biometricAvailable);
@@ -57,7 +59,7 @@ export default function LockScreen() {
     setError('');
     try {
       await invoke('biometric_authenticate');
-      unlock();
+      await unlockBiometric();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Biometric authentication failed');
     }
@@ -151,8 +153,10 @@ export default function LockScreen() {
         recoveryWords: verifiedWords,
         newPassphrase,
       });
+      // Old encrypted DB is unreadable without old passphrase — reset it
+      await invoke('reset_and_unlock_database', { passphrase: newPassphrase });
       setShowRecovery(false);
-      await unlock(newPassphrase);
+      setUnlocked();
     } catch (err: unknown) {
       setRecoveryError(err instanceof Error ? err.message : 'Failed to reset passphrase');
     } finally {
