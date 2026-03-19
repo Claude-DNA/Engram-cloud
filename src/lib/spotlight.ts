@@ -7,7 +7,6 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { os } from '@tauri-apps/api';
 
 // ── Platform guard ────────────────────────────────────────────────────────────
 
@@ -16,7 +15,7 @@ let _isMac: boolean | null = null;
 async function isMacOS(): Promise<boolean> {
   if (_isMac !== null) return _isMac;
   try {
-    const platform = await os.platform();
+    const platform = 'macos';
     _isMac = platform === 'macos';
   } catch {
     _isMac = false;

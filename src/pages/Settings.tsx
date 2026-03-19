@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { os } from '@tauri-apps/api';
 import ProfileSettings from '../views/settings/ProfileSettings';
 import SecuritySettings from '../views/settings/SecuritySettings';
 import AISettings from '../views/settings/AISettings';
@@ -30,7 +29,7 @@ export default function Settings() {
   const [isMac, setIsMac] = useState(false);
 
   useEffect(() => {
-    os.platform().then((p) => setIsMac(p === 'macos')).catch(() => {});
+    setIsMac(navigator.userAgent.includes('Mac'));
   }, []);
 
   const sections = isMac ? [...BASE_SECTIONS, MACOS_SECTION] : BASE_SECTIONS;
