@@ -49,9 +49,7 @@ export default function Sidebar() {
 
   const handlePersonChange = async (newId: number | null) => {
     setActivePersonId(newId);
-    // Rehydrate items for the new person
     if (newId !== null) {
-      // Reset and reload for new person
       await hydrate(productionLoader);
     }
   };
@@ -117,6 +115,18 @@ export default function Sidebar() {
           }
         >
           📅 Timeline
+        </NavLink>
+        <NavLink
+          to="/graph"
+          className={({ isActive }) =>
+            `block px-3 py-2 text-sm transition-colors ${
+              isActive
+                ? 'text-accent-gold bg-accent-gold/10'
+                : 'text-text-secondary hover:text-text-primary hover:bg-background/50'
+            }`
+          }
+        >
+          🔗 Graph
         </NavLink>
         <NavLink
           to="/settings"
