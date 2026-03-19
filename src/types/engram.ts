@@ -7,8 +7,19 @@ export type CloudType =
   | 'goal'
   | 'reflection';
 
+export const VALID_CLOUD_TYPES: readonly CloudType[] = [
+  'memory',
+  'knowledge',
+  'belief',
+  'value',
+  'skill',
+  'goal',
+  'reflection',
+] as const;
+
 export interface Person {
   id: number;
+  uuid: string;
   name: string;
   created_at: string;
   updated_at: string;
@@ -17,6 +28,7 @@ export interface Person {
 
 export interface LifePhase {
   id: number;
+  uuid: string;
   person_id: number;
   name: string;
   start_date: string;
@@ -28,6 +40,7 @@ export interface LifePhase {
 
 interface EngramItemBase {
   id: number;
+  uuid: string;
   person_id: number;
   title: string;
   content: string;
@@ -57,6 +70,7 @@ export type EngramItem =
 
 export interface Transformation {
   id: number;
+  uuid: string;
   person_id: number;
   source_id: number;
   target_id: number;
@@ -68,6 +82,7 @@ export interface Transformation {
 
 export interface EngramItemExperience {
   id: number;
+  uuid: string;
   engram_item_id: number;
   experience_type: string;
   content: string;
@@ -78,6 +93,7 @@ export interface EngramItemExperience {
 
 export interface Tag {
   id: number;
+  uuid: string;
   name: string;
   created_at: string;
 }

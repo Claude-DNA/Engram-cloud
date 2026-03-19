@@ -14,6 +14,7 @@ export interface EngramItemFilters {
 function rowToEngramItem(row: Row): EngramItem {
   return {
     id: row.id as number,
+    uuid: row.uuid as string,
     person_id: row.person_id as number,
     cloud_type: row.cloud_type as CloudType,
     title: row.title as string,
@@ -37,10 +38,11 @@ export class EngramItemRepository {
     date?: string | null;
     life_phase_id?: number | null;
   }): Promise<EngramItem> {
-    const _uuid = generateUUIDv7();
+    const uuid = generateUUIDv7();
     await this.client.execute(
-      'INSERT INTO engram_items (person_id, cloud_type, title, content, date, life_phase_id) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO engram_items (uuid, person_id, cloud_type, title, content, date, life_phase_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
+        uuid,
         data.person_id,
         data.cloud_type,
         data.title,
@@ -60,6 +62,14 @@ export class EngramItemRepository {
     const rows = await this.client.query(
       'SELECT * FROM engram_items WHERE id = ? AND deleted_at IS NULL',
       [id],
+    );
+    return rows.length > 0 ? rowToEngramItem(rows[0]) : null;
+  }
+
+  async findByUuid(uuid: string): Promise<EngramItem | null> {
+    const rows = await this.client.query(
+      'SELECT * FROM engram_items WHERE uuid = ? AND deleted_at IS NULL',
+      [uuid],
     );
     return rows.length > 0 ? rowToEngramItem(rows[0]) : null;
   }
@@ -115,7 +125,9 @@ export class EngramItemRepository {
     );
   }
 
-  async list(filters: EngramItemFilters = {}): Promise<EngramItem[]> {
+  async list(
+    filters: EngramItemFilters & { limit?: number; offset?: number } = {},
+  ): Promise<EngramItem[]> {
     const conditions: string[] = ['deleted_at IS NULL'];
     const params: unknown[] = [];
 
@@ -140,7 +152,17 @@ export class EngramItemRepository {
       params.push(filters.date_to);
     }
 
-    const sql = `SELECT * FROM engram_items WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`;
+    let sql = `SELECT * FROM engram_items WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`;
+
+    if (filters.limit !== undefined) {
+      sql += ` LIMIT ?`;
+      params.push(filters.limit);
+    }
+    if (filters.offset !== undefined) {
+      sql += ` OFFSET ?`;
+      params.push(filters.offset);
+    }
+
     const rows = await this.client.query(sql, params);
     return rows.map(rowToEngramItem);
   }

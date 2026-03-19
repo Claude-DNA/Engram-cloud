@@ -6,6 +6,7 @@ import type { EngramItemExperience } from '../types/engram';
 function rowToExperience(row: Row): EngramItemExperience {
   return {
     id: row.id as number,
+    uuid: row.uuid as string,
     engram_item_id: row.engram_item_id as number,
     experience_type: row.experience_type as string,
     content: row.content as string,
@@ -24,10 +25,11 @@ export class ExperienceLinksRepository {
     content: string;
     date?: string | null;
   }): Promise<EngramItemExperience> {
-    const _uuid = generateUUIDv7();
+    const uuid = generateUUIDv7();
     await this.client.execute(
-      'INSERT INTO engram_item_experiences (engram_item_id, experience_type, content, date) VALUES (?, ?, ?, ?)',
+      'INSERT INTO engram_item_experiences (uuid, engram_item_id, experience_type, content, date) VALUES (?, ?, ?, ?, ?)',
       [
+        uuid,
         data.engram_item_id,
         data.experience_type,
         data.content,
@@ -45,6 +47,14 @@ export class ExperienceLinksRepository {
     const rows = await this.client.query(
       'SELECT * FROM engram_item_experiences WHERE id = ?',
       [id],
+    );
+    return rows.length > 0 ? rowToExperience(rows[0]) : null;
+  }
+
+  async findByUuid(uuid: string): Promise<EngramItemExperience | null> {
+    const rows = await this.client.query(
+      'SELECT * FROM engram_item_experiences WHERE uuid = ?',
+      [uuid],
     );
     return rows.length > 0 ? rowToExperience(rows[0]) : null;
   }

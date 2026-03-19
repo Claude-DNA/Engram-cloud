@@ -21,18 +21,19 @@ describe("runMigrations", () => {
     expect(rows).toHaveLength(1);
   });
 
-  it("records the applied migration by name", async () => {
+  it("records all applied migrations by name", async () => {
     await runMigrations();
-    const rows = await db.query("SELECT name FROM _migrations", []);
-    expect(rows).toHaveLength(1);
+    const rows = await db.query("SELECT name FROM _migrations ORDER BY name", []);
+    expect(rows).toHaveLength(2);
     expect(rows[0].name).toBe("001_initial");
+    expect(rows[1].name).toBe("002_uuid_and_constraints");
   });
 
   it("is idempotent when run multiple times", async () => {
     await runMigrations();
     await runMigrations();
     const rows = await db.query("SELECT name FROM _migrations", []);
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
   });
 
   it("creates the persons table from the initial migration", async () => {

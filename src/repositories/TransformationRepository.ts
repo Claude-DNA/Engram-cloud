@@ -6,6 +6,7 @@ import type { Transformation } from '../types/engram';
 function rowToTransformation(row: Row): Transformation {
   return {
     id: row.id as number,
+    uuid: row.uuid as string,
     person_id: row.person_id as number,
     source_id: row.source_id as number,
     target_id: row.target_id as number,
@@ -26,10 +27,11 @@ export class TransformationRepository {
     transformation_type: string;
     description?: string | null;
   }): Promise<Transformation> {
-    const _uuid = generateUUIDv7();
+    const uuid = generateUUIDv7();
     await this.client.execute(
-      'INSERT INTO transformations (person_id, source_id, target_id, transformation_type, description) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO transformations (uuid, person_id, source_id, target_id, transformation_type, description) VALUES (?, ?, ?, ?, ?, ?)',
       [
+        uuid,
         data.person_id,
         data.source_id,
         data.target_id,
@@ -48,6 +50,14 @@ export class TransformationRepository {
     const rows = await this.client.query(
       'SELECT * FROM transformations WHERE id = ?',
       [id],
+    );
+    return rows.length > 0 ? rowToTransformation(rows[0]) : null;
+  }
+
+  async findByUuid(uuid: string): Promise<Transformation | null> {
+    const rows = await this.client.query(
+      'SELECT * FROM transformations WHERE uuid = ?',
+      [uuid],
     );
     return rows.length > 0 ? rowToTransformation(rows[0]) : null;
   }

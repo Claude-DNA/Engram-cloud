@@ -6,6 +6,7 @@ import type { Person } from '../types/engram';
 function rowToPerson(row: Row): Person {
   return {
     id: row.id as number,
+    uuid: row.uuid as string,
     name: row.name as string,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -17,10 +18,10 @@ export class PersonRepository {
   constructor(private readonly client: DbClient) {}
 
   async create(data: { name: string }): Promise<Person> {
-    const _uuid = generateUUIDv7();
+    const uuid = generateUUIDv7();
     await this.client.execute(
-      'INSERT INTO persons (name) VALUES (?)',
-      [data.name],
+      'INSERT INTO persons (uuid, name) VALUES (?, ?)',
+      [uuid, data.name],
     );
     const rows = await this.client.query(
       'SELECT * FROM persons WHERE id = last_insert_rowid()',
@@ -33,6 +34,14 @@ export class PersonRepository {
     const rows = await this.client.query(
       'SELECT * FROM persons WHERE id = ? AND deleted_at IS NULL',
       [id],
+    );
+    return rows.length > 0 ? rowToPerson(rows[0]) : null;
+  }
+
+  async findByUuid(uuid: string): Promise<Person | null> {
+    const rows = await this.client.query(
+      'SELECT * FROM persons WHERE uuid = ? AND deleted_at IS NULL',
+      [uuid],
     );
     return rows.length > 0 ? rowToPerson(rows[0]) : null;
   }

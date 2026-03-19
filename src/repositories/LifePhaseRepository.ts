@@ -6,6 +6,7 @@ import type { LifePhase } from '../types/engram';
 function rowToLifePhase(row: Row): LifePhase {
   return {
     id: row.id as number,
+    uuid: row.uuid as string,
     person_id: row.person_id as number,
     name: row.name as string,
     start_date: row.start_date as string,
@@ -26,10 +27,11 @@ export class LifePhaseRepository {
     end_date?: string | null;
     description?: string | null;
   }): Promise<LifePhase> {
-    const _uuid = generateUUIDv7();
+    const uuid = generateUUIDv7();
     await this.client.execute(
-      'INSERT INTO life_phases (person_id, name, start_date, end_date, description) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO life_phases (uuid, person_id, name, start_date, end_date, description) VALUES (?, ?, ?, ?, ?, ?)',
       [
+        uuid,
         data.person_id,
         data.name,
         data.start_date,
@@ -48,6 +50,14 @@ export class LifePhaseRepository {
     const rows = await this.client.query(
       'SELECT * FROM life_phases WHERE id = ?',
       [id],
+    );
+    return rows.length > 0 ? rowToLifePhase(rows[0]) : null;
+  }
+
+  async findByUuid(uuid: string): Promise<LifePhase | null> {
+    const rows = await this.client.query(
+      'SELECT * FROM life_phases WHERE uuid = ?',
+      [uuid],
     );
     return rows.length > 0 ? rowToLifePhase(rows[0]) : null;
   }
