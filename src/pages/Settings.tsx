@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../store';
 import type { Theme } from '../store';
 import { useEngramStore } from '../stores/engramStore';
@@ -8,7 +9,6 @@ import { validateImport, importPersonGraph } from '../stores/importService';
 import type { EngramExport } from '../stores/exportService';
 import type { ImportResult } from '../stores/importService';
 import type { CloudType } from '../types/engram';
-import { VALID_CLOUD_TYPES } from '../types/engram';
 
 const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
   { value: 'dark', label: 'Dark', icon: '🌙' },
@@ -31,10 +31,18 @@ export default function Settings() {
   const setTheme = useAppStore((s) => s.setTheme);
   const activePersonId = useEngramStore((s) => s.activePersonId);
   const persons = useEngramStore((s) => s.persons);
-
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importing, setImporting] = useState(false);
+  const [authRequired, setAuthRequired] = useState(true);
+  const [securityMsg, setSecurityMsg] = useState<string | null>(null);
+
+  // Load auth_required setting on mount
+  useEffect(() => {
+    settingsRepository.get('auth_required').then((val) => {
+      setAuthRequired(val !== 'false');
+    }).catch(() => {});
+  }, []);
 
   const activePerson = persons.find((p) => p.id === activePersonId);
 
@@ -136,6 +144,30 @@ export default function Settings() {
     input.click();
   };
 
+  const handleAuthToggle = async (next: boolean) => {
+    setSecurityMsg(null);
+    if (next) {
+      // Turning ON — verify a passphrase exists first
+      try {
+        const hasPass = await invoke<boolean>('has_passphrase');
+        if (!hasPass) {
+          setSecurityMsg('No passphrase set. Create one first to enable authentication.');
+          return;
+        }
+      } catch {
+        setSecurityMsg('Could not verify passphrase status.');
+        return;
+      }
+    }
+    setAuthRequired(next);
+    try {
+      await settingsRepository.set('auth_required', next ? 'true' : 'false');
+      if (!next) setSecurityMsg('Authentication disabled — the app will no longer lock.');
+    } catch (err) {
+      console.error('Failed to save auth_required:', err);
+    }
+  };
+
   return (
     <div className="p-6 max-w-lg mx-auto space-y-6">
       <h2 className="text-lg font-semibold text-text-primary">⚙️ Settings</h2>
@@ -229,6 +261,37 @@ export default function Settings() {
               </>
             )}
           </div>
+        )}
+      </div>
+
+      {/* Security */}
+      <div className="bg-surface border border-border rounded-lg p-4">
+        <h3 className="text-text-primary text-sm font-medium mb-3">Security</h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-text-primary">Require authentication</p>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Lock the app with your passphrase on launch and idle
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={authRequired}
+            onClick={() => handleAuthToggle(!authRequired)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent-gold/50 ${
+              authRequired ? 'bg-accent-gold' : 'bg-border'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                authRequired ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+        {securityMsg && (
+          <p className="mt-3 text-xs text-amber-400">{securityMsg}</p>
         )}
       </div>
 
