@@ -111,7 +111,7 @@ pub async fn ai_send_prompt(
         if attempt > 0 {
             // Exponential backoff: 1s, 2s
             let delay_ms = 1000u64 * (attempt as u64);
-            tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
         }
 
         let result = match provider.as_str() {
