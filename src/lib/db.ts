@@ -12,6 +12,11 @@ interface ExecuteResult {
 
 export type Row = Record<string, unknown>;
 
+export interface DbClient {
+  execute(sql: string, params?: unknown[]): Promise<{ rows_affected: number }>;
+  query(sql: string, params?: unknown[]): Promise<Row[]>;
+}
+
 async function execute(sql: string, params: unknown[] = []): Promise<ExecuteResult> {
   const res = await invoke<DbResponse<ExecuteResult>>("db_execute", { sql, params });
   if (!res.ok) throw new Error(res.error ?? "Database execute error");
