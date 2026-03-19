@@ -1,3 +1,5 @@
+import { useFocusTrap } from '../lib/useFocusTrap';
+
 interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
@@ -15,6 +17,8 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const trapRef = useFocusTrap(isOpen, onCancel);
+
   if (!isOpen) return null;
 
   return (
@@ -26,6 +30,7 @@ export default function ConfirmDialog({
       aria-label={title}
     >
       <div
+        ref={trapRef}
         onClick={(e) => e.stopPropagation()}
         className="bg-surface border border-border rounded-xl w-full max-w-sm p-5"
       >
