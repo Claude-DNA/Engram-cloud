@@ -4,6 +4,8 @@ mod db;
 mod deeplink;
 mod keychain;
 mod spotlight;
+mod url_fetch;
+mod folder_scan;
 
 use db::EncryptedDb;
 use serde_json::{json, Value};
@@ -107,6 +109,7 @@ fn reset_and_unlock_database(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
@@ -153,6 +156,8 @@ pub fn run() {
             spotlight::spotlight_reindex_all,
             spotlight::spotlight_get_indexed_ids,
             spotlight::spotlight_search,
+            url_fetch::url_fetch,
+            folder_scan::folder_scan,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
