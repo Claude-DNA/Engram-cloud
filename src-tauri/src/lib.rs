@@ -141,7 +141,8 @@ pub fn run() {
             keychain::get_api_key,
             keychain::delete_api_key,
             keychain::has_api_key,
-            ai::test_api_key
+            ai::test_api_key,
+            ai::ai_send_prompt
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
