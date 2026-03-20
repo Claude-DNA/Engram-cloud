@@ -183,6 +183,39 @@ pub async fn oauth_revoke(provider: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Make an authenticated API request (used by social providers)
+#[tauri::command]
+pub async fn oauth_api_request(
+    url: String,
+    token: String,
+    method: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    
+    let request = match method.to_uppercase().as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        _ => return Err(format!("Unsupported method: {}", method)),
+    };
+
+    let resp = request
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("API request failed: {}", e))?;
+
+    let status = resp.status();
+    let body: serde_json::Value = resp.json().await.map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    if !status.is_success() {
+        let error_msg = body["error"]["message"].as_str().unwrap_or("Unknown error");
+        return Err(format!("API error ({}): {}", status, error_msg));
+    }
+
+    Ok(body)
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 fn get_tokens_dir() -> Result<std::path::PathBuf, String> {

@@ -161,6 +161,7 @@ pub fn run() {
             oauth::oauth_refresh_token,
             oauth::oauth_get_tokens,
             oauth::oauth_revoke,
+            oauth::oauth_api_request,
             url_fetch::url_fetch,
             folder_scan::folder_scan,
         ])
