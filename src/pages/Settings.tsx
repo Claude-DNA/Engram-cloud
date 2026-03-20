@@ -6,14 +6,22 @@ import ImportSettings from '../views/settings/ImportSettings';
 import ExportSettings from '../views/settings/ExportSettings';
 import AboutSettings from '../views/settings/AboutSettings';
 import MacOSSettings from '../views/settings/MacOSSettings';
+import CloudStorageSettings from '../views/settings/CloudStorageSettings';
+import SocialAccountsSettings from '../views/settings/SocialAccountsSettings';
+import BudgetSettings from '../views/settings/BudgetSettings';
+import SourcePrioritySettings from '../views/settings/SourcePrioritySettings';
 
-type Section = 'profile' | 'security' | 'ai' | 'import' | 'export' | 'about' | 'macos';
+type Section = 'profile' | 'security' | 'ai' | 'import' | 'cloud' | 'social' | 'budget' | 'priority' | 'export' | 'about' | 'macos';
 
 const BASE_SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: '👤' },
   { id: 'security', label: 'Security', icon: '🔐' },
   { id: 'ai', label: 'AI', icon: '✨' },
   { id: 'import', label: 'Import', icon: '📥' },
+  { id: 'cloud', label: 'Cloud', icon: '☁️' },
+  { id: 'social', label: 'Social', icon: '🔗' },
+  { id: 'budget', label: 'Budget', icon: '💰' },
+  { id: 'priority', label: 'Priority', icon: '🔄' },
   { id: 'export', label: 'Export', icon: '📤' },
   { id: 'about', label: 'About', icon: 'ℹ️' },
 ];
@@ -40,6 +48,10 @@ export default function Settings() {
       case 'security': return <SecuritySettings />;
       case 'ai': return <AISettings />;
       case 'import': return <ImportSettings />;
+      case 'cloud': return <CloudStorageSettings />;
+      case 'social': return <SocialAccountsSettings />;
+      case 'budget': return <BudgetSettings />;
+      case 'priority': return <SourcePrioritySettings />;
       case 'export': return <ExportSettings />;
       case 'about': return <AboutSettings />;
       case 'macos': return <MacOSSettings />;
