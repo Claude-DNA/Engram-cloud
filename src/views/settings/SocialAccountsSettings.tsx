@@ -140,6 +140,28 @@ export default function SocialAccountsSettings() {
     handleSync(platform);
   }, [handleSync]);
 
+
+  const handleTestSave = useCallback(async () => {
+    try {
+      let personId = useEngramStore.getState().activePersonId;
+      if (!personId) {
+        const person = await createPerson({ name: 'Me' });
+        useEngramStore.getState().setActivePersonId(person.id);
+        personId = person.id;
+      }
+      await engramItemRepository.create({
+        person_id: personId,
+        cloud_type: 'ideas',
+        title: 'Test YouTube Item',
+        content: 'This is a test item from social sync debug',
+        date: new Date().toISOString(),
+      });
+      alert('SUCCESS: Item saved to Ideas cloud! Person ID: ' + personId);
+    } catch (err) {
+      alert('FAILED to save: ' + String(err));
+    }
+  }, []);
+
   const formatDate = (iso: string): string => {
     if (!iso) return 'Never';
     try {
@@ -155,6 +177,7 @@ export default function SocialAccountsSettings() {
         <p className="text-slate-400 text-sm mt-1">
           Connect social accounts to import your post history.
         </p>
+        <button onClick={handleTestSave} className="mt-2 px-3 py-1 text-xs bg-emerald-600 text-white rounded">Test Save to Ideas</button>
       </div>
 
       <div className="space-y-3">
