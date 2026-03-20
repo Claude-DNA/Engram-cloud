@@ -104,7 +104,7 @@ export default function SocialAccountsSettings() {
         try {
           await engramItemRepository.create({
             person_id: personId!,
-            cloud_type: 'ideas',
+            cloud_type: 'memory',
             title: item.type === 'video'
               ? `${item.text.split('\n')[0]}`
               : `${platform.name} ${item.type} (${new Date(item.createdAt).toLocaleDateString()})`,
@@ -151,7 +151,7 @@ export default function SocialAccountsSettings() {
       }
       await engramItemRepository.create({
         person_id: personId,
-        cloud_type: 'ideas',
+        cloud_type: 'memory',
         title: 'Test YouTube Item',
         content: 'This is a test item from social sync debug',
         date: new Date().toISOString(),
