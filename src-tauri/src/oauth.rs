@@ -101,11 +101,8 @@ pub async fn oauth_native_auth(
     .await
     .map_err(|e| format!("Token exchange failed: {}", e))?;
 
-    // Store in Keychain
-    let tokens_json = serde_json::to_string(&tokens).map_err(|e| e.to_string())?;
-    let _ = delete_generic_password(KEYCHAIN_SERVICE, &provider);
-    set_generic_password(KEYCHAIN_SERVICE, &provider, tokens_json.as_bytes())
-        .map_err(|e| format!("Failed to store tokens in keychain: {}", e))?;
+    // Store tokens (try Keychain, fall back to file)
+    store_tokens(&provider, &tokens)?;
 
     Ok(tokens)
 }
@@ -151,11 +148,8 @@ pub async fn oauth_refresh_token(
         scope: body["scope"].as_str().map(String::from),
     };
 
-    // Update Keychain
-    let tokens_json = serde_json::to_string(&tokens).map_err(|e| e.to_string())?;
-    let _ = delete_generic_password(KEYCHAIN_SERVICE, &provider);
-    set_generic_password(KEYCHAIN_SERVICE, &provider, tokens_json.as_bytes())
-        .map_err(|e| format!("Failed to update tokens in keychain: {}", e))?;
+    // Update token storage
+    store_tokens(&provider, &tokens)?;
 
     Ok(tokens)
 }
@@ -173,15 +167,55 @@ pub async fn oauth_get_tokens(provider: String) -> Result<Option<OAuthTokens>, S
 #[tauri::command]
 pub async fn oauth_revoke(provider: String) -> Result<(), String> {
     let _ = delete_generic_password(KEYCHAIN_SERVICE, &provider);
+    // Also delete file fallback
+    if let Ok(dir) = get_tokens_dir() {
+        let _ = std::fs::remove_file(dir.join(format!("{}.json", &provider)));
+    }
     Ok(())
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
+fn get_tokens_dir() -> Result<std::path::PathBuf, String> {
+    let dir = dirs::data_dir()
+        .ok_or("No data directory")?
+        .join("cloud.engram.app")
+        .join("oauth");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn store_tokens(provider: &str, tokens: &OAuthTokens) -> Result<(), String> {
+    let tokens_json = serde_json::to_string(tokens).map_err(|e| e.to_string())?;
+
+    // Try Keychain first
+    let _ = delete_generic_password(KEYCHAIN_SERVICE, provider);
+    match set_generic_password(KEYCHAIN_SERVICE, provider, tokens_json.as_bytes()) {
+        Ok(_) => return Ok(()),
+        Err(_) => {
+            // Fall back to file
+            let path = get_tokens_dir()?.join(format!("{}.json", provider));
+            std::fs::write(&path, &tokens_json)
+                .map_err(|e| format!("Failed to store tokens: {}", e))?;
+            println!("OAuth tokens stored in file (keychain unavailable in dev mode)");
+            Ok(())
+        }
+    }
+}
+
 fn get_stored_tokens(provider: &str) -> Result<OAuthTokens, String> {
-    let raw = get_generic_password(KEYCHAIN_SERVICE, provider)
+    // Try Keychain first
+    if let Ok(raw) = get_generic_password(KEYCHAIN_SERVICE, provider) {
+        if let Ok(json_str) = String::from_utf8(raw) {
+            if let Ok(tokens) = serde_json::from_str(&json_str) {
+                return Ok(tokens);
+            }
+        }
+    }
+    // Fall back to file
+    let path = get_tokens_dir()?.join(format!("{}.json", provider));
+    let json_str = std::fs::read_to_string(&path)
         .map_err(|_| format!("No tokens stored for {}", provider))?;
-    let json_str = String::from_utf8(raw).map_err(|e| e.to_string())?;
     serde_json::from_str(&json_str).map_err(|e| e.to_string())
 }
 
