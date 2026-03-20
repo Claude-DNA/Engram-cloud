@@ -143,6 +143,12 @@ export default function ImportView() {
           </p>
         </div>
 
+        {/* URL paste */}
+        <UrlPasteInput />
+
+        {/* Folder scanner */}
+        <FolderPickerCard />
+
         {/* Drop zone */}
         <ImportDropZone
           onFileDrop={handleFileDrop}
