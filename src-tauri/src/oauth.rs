@@ -261,16 +261,48 @@ async fn exchange_code_for_tokens(
     })
 }
 
-/// Opens ASWebAuthenticationSession on macOS
-/// TODO: Implement via objc2 crate or swift-bridge
-/// For now, falls back to opening URL in default browser
+/// Opens browser for OAuth and starts a localhost server to capture the callback
 async fn open_auth_session(url: &str, _callback_scheme: &str) -> Result<String, String> {
-    // Phase 1: Open in default browser (works, but requires manual URL copy)
-    // Phase 2: Use ASWebAuthenticationSession via objc2 for true native flow
-    
-    open::that(url).map_err(|e| format!("Failed to open browser: {}", e))?;
-    
-    // For now, return an error indicating the native session needs implementation
-    // The frontend will show a "paste callback URL" fallback
-    Err("ASWebAuthenticationSession not yet wired — paste callback URL manually".to_string())
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+
+    // Bind to localhost on a random available port
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|e| format!("Failed to bind callback server: {}", e))?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+
+    // Replace redirect_uri in the URL with our actual port
+    let actual_url = url.replace(
+        "redirect_uri=http%3A%2F%2Flocalhost",
+        &format!("redirect_uri=http%3A%2F%2Flocalhost%3A{}", port),
+    );
+
+    // Open the browser
+    open::that(&actual_url).map_err(|e| format!("Failed to open browser: {}", e))?;
+
+    // Wait for the callback
+    let (mut stream, _) = listener.accept()
+        .map_err(|e| format!("Failed to accept callback: {}", e))?;
+
+    let mut reader = BufReader::new(&stream);
+    let mut request_line = String::new();
+    reader.read_line(&mut request_line)
+        .map_err(|e| format!("Failed to read callback: {}", e))?;
+
+    // Extract path from "GET /?code=...&scope=... HTTP/1.1"
+    let path = request_line
+        .split_whitespace()
+        .nth(1)
+        .ok_or("Invalid HTTP request")?
+        .to_string();
+
+    let callback_url = format!("http://localhost:{}{}", port, path);
+
+    // Send success page to browser
+    let body = "<html><body style='font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1e1b2e;color:#e2e8f0'><div style='text-align:center'><h1>Connected!</h1><p>You can close this tab and return to Engram Cloud.</p></div></body></html>";
+    let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}", body.len(), body);
+    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.flush();
+
+    Ok(callback_url)
 }
