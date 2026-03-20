@@ -98,6 +98,7 @@ export default function SocialAccountsSettings() {
         useEngramStore.getState().setActivePersonId(person.id);
         personId = person.id;
       }
+      const errors: string[] = [];
       for (const item of items) {
         if (!item.text || item.text.trim().length === 0) continue;
         try {
@@ -112,9 +113,10 @@ export default function SocialAccountsSettings() {
           });
           saved++;
         } catch (err) {
-          console.error('Failed to save synced item:', err, item.text?.substring(0, 50));
+          if (errors.length < 3) errors.push(String(err));
         }
       }
+      alert(`Sync: ${saved} saved to Ideas cloud, ${errors.length} errors` + (errors.length > 0 ? '\n' + errors.slice(0,2).join('\n') : ''));
       if (saved > 0) {
         setStates((prev) => ({
           ...prev,
@@ -127,7 +129,7 @@ export default function SocialAccountsSettings() {
         }));
       }
     }).catch((err) => {
-      console.error('Sync failed:', err);
+      alert('Sync failed: ' + String(err));
     });
   }, [pauseFlags]);
 
