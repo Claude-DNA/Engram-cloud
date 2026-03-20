@@ -3,6 +3,7 @@ mod auth;
 mod db;
 mod deeplink;
 mod keychain;
+mod oauth;
 mod spotlight;
 mod url_fetch;
 mod folder_scan;
@@ -156,6 +157,10 @@ pub fn run() {
             spotlight::spotlight_reindex_all,
             spotlight::spotlight_get_indexed_ids,
             spotlight::spotlight_search,
+            oauth::oauth_native_auth,
+            oauth::oauth_refresh_token,
+            oauth::oauth_get_tokens,
+            oauth::oauth_revoke,
             url_fetch::url_fetch,
             folder_scan::folder_scan,
         ])

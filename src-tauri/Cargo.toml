@@ -31,6 +31,12 @@ security-framework = "3"
 hex = "0.4"
 argon2 = "0.5"
 rand = "0.8"
+open = "5"
+urlencoding = "2"
+url = "2"
+sha2 = "0.10"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
 bip39 = "1"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
