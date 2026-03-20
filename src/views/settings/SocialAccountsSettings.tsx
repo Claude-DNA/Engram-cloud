@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { oauthManager } from '../../engine/import/channels/cloud/OAuthManager';
 import { engramItemRepository } from '../../repositories';
 import { useEngramStore } from '../../stores/engramStore';
+import { createPerson } from '../../stores/engramService';
 import { syncManager } from '../../engine/import/channels/social/SocialSyncManager';
 import { getSocialProvider, runSocialSync } from '../../engine/import/channels/SocialChannel';
 import SocialSyncProgress from '../../components/import/SocialSyncProgress';
@@ -90,12 +91,18 @@ export default function SocialAccountsSettings() {
     ).then(async (items) => {
       // Save synced items to the engram database
       let saved = 0;
+      // Ensure a person exists
+      let personId = useEngramStore.getState().activePersonId;
+      if (!personId) {
+        const person = await createPerson({ name: 'Me' });
+        useEngramStore.getState().setActivePerson(person.id);
+        personId = person.id;
+      }
       for (const item of items) {
         if (!item.text || item.text.trim().length === 0) continue;
         try {
-          const personId = useEngramStore.getState().activePersonId ?? 1;
           await engramItemRepository.create({
-            person_id: personId,
+            person_id: personId!,
             cloud_type: 'ideas',
             title: item.type === 'video'
               ? `${item.text.split('\n')[0]}`
