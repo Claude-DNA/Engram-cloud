@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { oauthManager } from '../../engine/import/channels/cloud/OAuthManager';
 import { engramItemRepository } from '../../repositories';
+import { useEngramStore } from '../../stores/engramStore';
 import { syncManager } from '../../engine/import/channels/social/SocialSyncManager';
 import { getSocialProvider, runSocialSync } from '../../engine/import/channels/SocialChannel';
 import SocialSyncProgress from '../../components/import/SocialSyncProgress';
@@ -92,17 +93,20 @@ export default function SocialAccountsSettings() {
       for (const item of items) {
         if (!item.text || item.text.trim().length === 0) continue;
         try {
+          const personId = useEngramStore.getState().activePersonId ?? 1;
           await engramItemRepository.create({
-            person_id: 1,
+            person_id: personId,
             cloud_type: 'ideas',
             title: item.type === 'video'
-              ? (item.metadata?.title as string ?? `${platform.name} video`)
+              ? `${item.text.split('\n')[0]}`
               : `${platform.name} ${item.type} (${new Date(item.createdAt).toLocaleDateString()})`,
             content: item.text,
             date: item.createdAt || null,
           });
           saved++;
-        } catch { /* skip duplicates */ }
+        } catch (err) {
+          console.error('Failed to save synced item:', err, item.text?.substring(0, 50));
+        }
       }
       if (saved > 0) {
         setStates((prev) => ({
