@@ -116,7 +116,6 @@ export default function SocialAccountsSettings() {
           if (errors.length < 3) errors.push(String(err));
         }
       }
-      alert(`Sync: ${saved} saved to Ideas cloud, ${errors.length} errors` + (errors.length > 0 ? '\n' + errors.slice(0,2).join('\n') : ''));
       if (saved > 0) {
         setStates((prev) => ({
           ...prev,
@@ -129,7 +128,6 @@ export default function SocialAccountsSettings() {
         }));
       }
     }).catch((err) => {
-      alert('Sync failed: ' + String(err));
     });
   }, [pauseFlags]);
 
@@ -141,26 +139,6 @@ export default function SocialAccountsSettings() {
   }, [handleSync]);
 
 
-  const handleTestSave = useCallback(async () => {
-    try {
-      let personId = useEngramStore.getState().activePersonId;
-      if (!personId) {
-        const person = await createPerson({ name: 'Me' });
-        useEngramStore.getState().setActivePersonId(person.id);
-        personId = person.id;
-      }
-      await engramItemRepository.create({
-        person_id: personId,
-        cloud_type: 'memory',
-        title: 'Test YouTube Item',
-        content: 'This is a test item from social sync debug',
-        date: new Date().toISOString(),
-      });
-      alert('SUCCESS: Item saved to Ideas cloud! Person ID: ' + personId);
-    } catch (err) {
-      alert('FAILED to save: ' + String(err));
-    }
-  }, []);
 
   const formatDate = (iso: string): string => {
     if (!iso) return 'Never';
@@ -177,7 +155,34 @@ export default function SocialAccountsSettings() {
         <p className="text-slate-400 text-sm mt-1">
           Connect social accounts to import your post history.
         </p>
-        <button onClick={handleTestSave} className="mt-2 px-3 py-1 text-xs bg-emerald-600 text-white rounded">Test Save to Ideas</button>
+        <button onClick={async () => {
+          setDebugLog(prev => [...prev, 'Button clicked...']);
+          try {
+            let personId = useEngramStore.getState().activePersonId;
+            setDebugLog(prev => [...prev, 'Person ID: ' + String(personId)]);
+            if (!personId) {
+              const person = await createPerson({ name: 'Me' });
+              useEngramStore.getState().setActivePersonId(person.id);
+              personId = person.id;
+              setDebugLog(prev => [...prev, 'Created person: ' + person.id]);
+            }
+            await engramItemRepository.create({
+              person_id: personId,
+              cloud_type: 'memory',
+              title: 'Test YouTube Item ' + Date.now(),
+              content: 'Debug test item from social sync',
+              date: new Date().toISOString(),
+            });
+            setDebugLog(prev => [...prev, 'SUCCESS - item saved!']);
+          } catch (err) {
+            setDebugLog(prev => [...prev, 'ERROR: ' + String(err)]);
+          }
+        }} className="mt-2 px-3 py-1 text-xs bg-emerald-600 text-white rounded">Test Save to DB</button>
+        {debugLog.length > 0 && (
+          <div className="mt-2 p-2 bg-slate-900 rounded text-xs font-mono text-green-400 max-h-40 overflow-y-auto">
+            {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
