@@ -1,5 +1,5 @@
-import type { UrlExtractionResult } from '../UrlChannel';
-import type { UrlSourceType } from '../url/UrlTypeDetector';
+import type { UrlExtractionResult } from '../../UrlChannel';
+import type { UrlSourceType } from '../UrlTypeDetector';
 
 /**
  * Generic article/web page extractor.

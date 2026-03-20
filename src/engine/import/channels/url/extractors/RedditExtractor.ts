@@ -1,4 +1,4 @@
-import type { UrlExtractionResult } from '../UrlChannel';
+import type { UrlExtractionResult } from '../../UrlChannel';
 
 interface FetchResponse {
   ok: boolean;

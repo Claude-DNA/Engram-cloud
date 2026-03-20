@@ -36,10 +36,9 @@ export async function downloadCloudFiles(
     const file = files[i];
     if (file.isFolder) continue;
 
-    const localPath = await p.downloadFile(
-      provider === 'dropbox' ? file.path : file.id,
-      ...(provider === 'google_drive' ? [file.mimeType] : []),
-    );
+    const fileId = provider === 'dropbox' ? file.path : file.id;
+    const mimeType = file.mimeType || 'application/octet-stream';
+    const localPath = await p.downloadFile(fileId, mimeType);
 
     results.push({ file, localPath, provider });
     onProgress?.(i + 1, files.length);
