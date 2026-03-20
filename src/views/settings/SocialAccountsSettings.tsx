@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { oauthManager } from '../../engine/import/channels/cloud/OAuthManager';
+import { engramItemRepository } from '../../repositories';
 import { syncManager } from '../../engine/import/channels/social/SocialSyncManager';
 import { getSocialProvider, runSocialSync } from '../../engine/import/channels/SocialChannel';
 import SocialSyncProgress from '../../components/import/SocialSyncProgress';
@@ -85,7 +86,38 @@ export default function SocialAccountsSettings() {
         }));
       },
       () => pauseFlags[platform.id] ?? false,
-    ).catch(() => {});
+    ).then(async (items) => {
+      // Save synced items to the engram database
+      let saved = 0;
+      for (const item of items) {
+        if (!item.text || item.text.trim().length === 0) continue;
+        try {
+          await engramItemRepository.create({
+            person_id: 1,
+            cloud_type: 'ideas',
+            title: item.type === 'video'
+              ? (item.metadata?.title as string ?? `${platform.name} video`)
+              : `${platform.name} ${item.type} (${new Date(item.createdAt).toLocaleDateString()})`,
+            content: item.text,
+            date: item.createdAt || null,
+          });
+          saved++;
+        } catch { /* skip duplicates */ }
+      }
+      if (saved > 0) {
+        setStates((prev) => ({
+          ...prev,
+          [platform.id]: {
+            ...prev[platform.id],
+            syncProgress: prev[platform.id]?.syncProgress
+              ? { ...prev[platform.id]!.syncProgress!, isComplete: true }
+              : null,
+          },
+        }));
+      }
+    }).catch((err) => {
+      console.error('Sync failed:', err);
+    });
   }, [pauseFlags]);
 
   const formatDate = (iso: string): string => {
