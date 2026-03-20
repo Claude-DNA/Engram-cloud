@@ -31,6 +31,7 @@ pub async fn oauth_native_auth(
     scope: String,
     use_pkce: bool,
     callback_scheme: String,
+    client_id: String,
 ) -> Result<OAuthTokens, String> {
     // Generate PKCE if needed
     let (code_verifier, code_challenge) = if use_pkce {
@@ -41,7 +42,12 @@ pub async fn oauth_native_auth(
         (None, None)
     };
 
-    let redirect_uri = format!("{}://oauth/{}", callback_scheme, provider);
+    // Google desktop apps require http://localhost redirect
+    let redirect_uri = if provider == "google_drive" || provider == "youtube" {
+        "http://localhost".to_string()
+    } else {
+        format!("{}://oauth/{}", callback_scheme, provider)
+    };
 
     // Build auth URL with params
     let mut url = format!(
@@ -58,8 +64,7 @@ pub async fn oauth_native_auth(
         ));
     }
 
-    // TODO: Add client_id from secure config
-    // url.push_str(&format!("&client_id={}", client_id));
+    url.push_str(&format!("&client_id={}", urlencoding::encode(&client_id)));
 
     // Open ASWebAuthenticationSession
     // This is the native macOS/iOS auth flow
@@ -71,12 +76,27 @@ pub async fn oauth_native_auth(
     let code = extract_code_from_url(&callback_url)
         .ok_or_else(|| "No authorization code in callback".to_string())?;
 
+    // Load client secret from google-oauth.json (not committed to repo)
+    let client_secret: Option<String> = if provider == "google_drive" || provider == "youtube" {
+        let oauth_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("google-oauth.json");
+        if let Ok(json_str) = std::fs::read_to_string(&oauth_path) {
+            let v: serde_json::Value = serde_json::from_str(&json_str).unwrap_or_default();
+            v["installed"]["client_secret"].as_str().map(String::from)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     // Exchange code for tokens
     let tokens = exchange_code_for_tokens(
         &token_url,
         &code,
         &redirect_uri,
         code_verifier.as_deref(),
+        &client_id,
+        client_secret.as_deref(),
     )
     .await
     .map_err(|e| format!("Token exchange failed: {}", e))?;
@@ -196,15 +216,20 @@ async fn exchange_code_for_tokens(
     code: &str,
     redirect_uri: &str,
     code_verifier: Option<&str>,
+    client_id: &str,
+    client_secret: Option<&str>,
 ) -> Result<OAuthTokens, String> {
     let client = reqwest::Client::new();
     let mut params: Vec<(&str, &str)> = vec![
         ("grant_type", "authorization_code"),
         ("code", code),
         ("redirect_uri", redirect_uri),
-        // TODO: Add client_id and client_secret from secure config
+        ("client_id", client_id),
     ];
 
+    if let Some(secret) = client_secret {
+        params.push(("client_secret", secret));
+    }
     if let Some(verifier) = code_verifier {
         params.push(("code_verifier", verifier));
     }

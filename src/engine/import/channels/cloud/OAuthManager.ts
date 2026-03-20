@@ -25,6 +25,12 @@ export interface OAuthConfig {
 // Custom URL scheme for OAuth callbacks: engram-cloud://oauth/{provider}
 const CALLBACK_SCHEME = 'engram-cloud';
 
+// OAuth Client IDs (Desktop app credentials)
+const CLIENT_IDS: Partial<Record<OAuthProvider, string>> = {
+  google_drive: '398882721266-7g566n5uu120nk33urnq5jfsf6c3ms27.apps.googleusercontent.com',
+  youtube: '398882721266-7g566n5uu120nk33urnq5jfsf6c3ms27.apps.googleusercontent.com',
+};
+
 const OAUTH_CONFIGS: Record<string, Partial<OAuthConfig>> = {
   google_drive: {
     authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -82,6 +88,9 @@ export class OAuthManager {
     const config = OAUTH_CONFIGS[provider];
     if (!config) throw new Error(`Unknown OAuth provider: ${provider}`);
 
+    const clientId = CLIENT_IDS[provider];
+    if (!clientId) throw new Error(`No client ID configured for ${provider}. Set up OAuth credentials first.`);
+
     const tokens = await invoke<OAuthTokens>('oauth_native_auth', {
       provider,
       authUrl: config.authUrl,
@@ -89,6 +98,7 @@ export class OAuthManager {
       scope: config.scope,
       usePkce: config.usePKCE ?? false,
       callbackScheme: config.callbackScheme ?? CALLBACK_SCHEME,
+      clientId,
     });
 
     return tokens;
