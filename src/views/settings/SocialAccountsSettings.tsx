@@ -95,7 +95,7 @@ export default function SocialAccountsSettings() {
       let personId = useEngramStore.getState().activePersonId;
       if (!personId) {
         const person = await createPerson({ name: 'Me' });
-        useEngramStore.getState().setActivePerson(person.id);
+        useEngramStore.getState().setActivePersonId(person.id);
         personId = person.id;
       }
       for (const item of items) {
