@@ -124,6 +124,13 @@ export default function SocialAccountsSettings() {
     });
   }, [pauseFlags]);
 
+  const handleFullResync = useCallback(async (platform: typeof PLATFORMS[number]) => {
+    // Clear sync state so it does a full fetch
+    await syncManager.resetState(platform.id);
+    // Then run normal sync
+    handleSync(platform);
+  }, [handleSync]);
+
   const formatDate = (iso: string): string => {
     if (!iso) return 'Never';
     try {
@@ -170,7 +177,7 @@ export default function SocialAccountsSettings() {
                     ) : state?.connected ? (
                       <>
                         <button
-                          onClick={() => handleSync(p)}
+                          onClick={() => handleFullResync(p)}
                           className="px-3 py-1.5 text-xs text-indigo-400 border border-indigo-400/30 rounded-lg hover:bg-indigo-400/10 transition-colors"
                         >
                           Sync Now

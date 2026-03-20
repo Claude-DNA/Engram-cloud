@@ -60,6 +60,11 @@ export class SocialSyncManager {
     await this.saveState(platform, { syncStatus: 'syncing', errorMessage: null });
   }
 
+  async resetState(platform: string): Promise<void> {
+    this.states.delete(platform);
+    await settingsRepository.set(`${SYNC_KEY_PREFIX}${platform}`, '').catch(() => {});
+  }
+
   async markComplete(platform: string, cursor: string, itemCount: number): Promise<void> {
     const current = await this.loadState(platform);
     await this.saveState(platform, {
