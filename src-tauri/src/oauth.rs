@@ -50,10 +50,19 @@ pub async fn oauth_native_auth(
     };
 
     // Build auth URL with params
+    // Start callback listener FIRST to get the port
+    use std::net::TcpListener;
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|e| format!("Failed to bind callback server: {}", e))?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    
+    // Use the actual port in redirect_uri so Google redirects to our server
+    let actual_redirect = format!("http://localhost:{}", port);
+
     let mut url = format!(
         "{}?response_type=code&redirect_uri={}&scope={}",
         auth_url,
-        urlencoding::encode(&redirect_uri),
+        urlencoding::encode(&actual_redirect),
         urlencoding::encode(&scope),
     );
 
@@ -68,7 +77,7 @@ pub async fn oauth_native_auth(
 
     // Open ASWebAuthenticationSession
     // This is the native macOS/iOS auth flow
-    let callback_url = open_auth_session(&url, &callback_scheme)
+    let callback_url = open_auth_session_with_listener(&url, listener)
         .await
         .map_err(|e| format!("Auth session failed: {}", e))?;
 
@@ -89,11 +98,11 @@ pub async fn oauth_native_auth(
         None
     };
 
-    // Exchange code for tokens
+    // Exchange code for tokens (redirect_uri must match what was in auth URL)
     let tokens = exchange_code_for_tokens(
         &token_url,
         &code,
-        &redirect_uri,
+        &actual_redirect,
         code_verifier.as_deref(),
         &client_id,
         client_secret.as_deref(),
@@ -295,24 +304,14 @@ async fn exchange_code_for_tokens(
     })
 }
 
-/// Opens browser for OAuth and starts a localhost server to capture the callback
-async fn open_auth_session(url: &str, _callback_scheme: &str) -> Result<String, String> {
+/// Opens browser and waits for OAuth callback on the pre-bound listener
+async fn open_auth_session_with_listener(url: &str, listener: std::net::TcpListener) -> Result<String, String> {
     use std::io::{BufRead, BufReader, Write};
-    use std::net::TcpListener;
 
-    // Bind to localhost on a random available port
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .map_err(|e| format!("Failed to bind callback server: {}", e))?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
 
-    // Replace redirect_uri in the URL with our actual port
-    let actual_url = url.replace(
-        "redirect_uri=http%3A%2F%2Flocalhost",
-        &format!("redirect_uri=http%3A%2F%2Flocalhost%3A{}", port),
-    );
-
-    // Open the browser
-    open::that(&actual_url).map_err(|e| format!("Failed to open browser: {}", e))?;
+    // Open the browser with the auth URL (redirect_uri already has our port)
+    open::that(url).map_err(|e| format!("Failed to open browser: {}", e))?;
 
     // Wait for the callback
     let (mut stream, _) = listener.accept()
